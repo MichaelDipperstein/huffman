@@ -26,8 +26,12 @@
 ****************************************************************************
 *   HISTORY
 *
-*   $Id: bitarray.c,v 1.1.1.1 2004/02/09 04:15:45 michael Exp $
+*   $Id: bitarray.c,v 1.2 2006/02/08 13:53:21 michael Exp $
 *   $Log: bitarray.c,v $
+*   Revision 1.2  2006/02/08 13:53:21  michael
+*   Applied Petr Kobalicek's <kobalicek.petr@gmail.com> fix for handling
+*   array memory allocation failures.
+*
 *   Revision 1.1.1.1  2004/02/09 04:15:45  michael
 *   Initial release
 *
@@ -133,6 +137,7 @@ bit_array_t *BitArrayCreate(unsigned int bits)
             /* malloc failed */
             errno = ENOMEM;
             free(ba);
+            ba = NULL;
         }
     }
 

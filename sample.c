@@ -9,8 +9,11 @@
 ****************************************************************************
 *   HISTORY
 *
-*   $Id: sample.c,v 1.1.1.1 2004/02/09 04:15:45 michael Exp $
+*   $Id: sample.c,v 1.2 2006/02/08 14:03:21 michael Exp $
 *   $Log: sample.c,v $
+*   Revision 1.2  2006/02/08 14:03:21  michael
+*   Update for latest changes to bitarray.c
+*
 *   Revision 1.1.1.1  2004/02/09 04:15:45  michael
 *   Initial release
 *
@@ -212,6 +215,5 @@ int main(int argc, char *argv[])
 
     BitArrayDestroy(ba1);
     BitArrayDestroy(ba2);
-
-    return(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
 }

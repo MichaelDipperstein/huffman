@@ -26,6 +26,8 @@ sample.c demonstrates usage of each of the bitarray functions.
 HISTORY
 -------
 01/30/04 - Initial release
+02/08/06 - Applied Petr Kobalicek's <kobalicek.petr@gmail.com> fix for
+           handling array memory allocation failures.
 
 TODO
 ----
@@ -33,4 +35,5 @@ TODO
 
 AUTHOR
 ------
-Michael Dipperstein (mdipper@cs.ucsb.edu)
+Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
+http://michael.dipperstein.com
