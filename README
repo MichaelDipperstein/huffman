@@ -9,8 +9,9 @@ FILES
 bitarray.c      - Library providing operations on arbitrary length arrays
                   of bits.
 bitarray.h      - Header for bitarray library.
-sample.c        - Program demonstrating how to use the bitarray library. 
-LICENSE         - GNU Lesser General Public License
+COPYING         - GNU General Public License Version 3
+COPYING.LESSER  - GNU Lesser General Public License Version 3
+sample.c        - Program demonstrating how to use the bitarray library.
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
 README          - this file
 
@@ -28,6 +29,7 @@ HISTORY
 01/30/04 - Initial release
 02/08/06 - Applied Petr Kobalicek's <kobalicek.petr@gmail.com> fix for
            handling array memory allocation failures.
+08/26/07 - Updated for LGPL v3 release.
 
 TODO
 ----
