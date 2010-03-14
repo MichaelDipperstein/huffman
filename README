@@ -96,6 +96,8 @@ HISTORY
             byte when given an integral number of bytes.
 08/29/07  - Explicitly licensed under LGPL version 3.
           - Replaces getopt() with optlist library.
+06/08/08  - Incorporates Emanuele Giaquinta's patch to eliminate redundant
+            check during the canonical decode process.
 
 TODO
 ----

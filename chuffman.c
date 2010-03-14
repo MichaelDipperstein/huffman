@@ -16,8 +16,12 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: chuffman.c,v 1.9 2007/09/20 03:30:06 michael Exp $
+*   $Id: chuffman.c,v 1.10 2008/06/08 21:09:00 michael Exp $
 *   $Log: chuffman.c,v $
+*   Revision 1.10  2008/06/08 21:09:00  michael
+*   Incorporated Emanuele Giaquinta's  patch to eliminate redundant
+*   check  while decoding.
+*
 *   Revision 1.9  2007/09/20 03:30:06  michael
 *   Changes required for LGPL v3.
 *
@@ -322,8 +326,7 @@ int CHuffmanDecodeFile(char *inFile, char *outFile)
                 (i < NUM_CHARS) && (canonicalList[i].codeLen == length);
                 i++)
             {
-                if ((BitArrayCompare(canonicalList[i].code, code) == 0) &&
-                    (canonicalList[i].codeLen == length))
+                if (BitArrayCompare(canonicalList[i].code, code) == 0)
                 {
                     /* we just read a symbol output decoded value */
                     if (canonicalList[i].value != EOF_CHAR)
@@ -334,6 +337,7 @@ int CHuffmanDecodeFile(char *inFile, char *outFile)
                     {
                         decodedEOF = TRUE;
                     }
+
                     BitArrayClearAll(code);
                     length = 0;
 
