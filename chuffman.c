@@ -16,9 +16,22 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
+*   $Id: chuffman.c,v 1.4 2004/01/13 15:49:41 michael Exp $
+*   $Log: chuffman.c,v $
+*   Revision 1.4  2004/01/13 15:49:41  michael
+*   Beautify header
+*
+*   Revision 1.3  2004/01/13 05:55:02  michael
+*   Use bit stream library.
+*
+*   Revision 1.2  2004/01/05 05:03:18  michael
+*   Use encoded EOF instead of counting characters.
+*
+*
+*
 ****************************************************************************
 *
-* Huffman: An ANSI C Huffman Encoding/Decoding Routine
+* Huffman: An ANSI C Canonical Huffman Encoding/Decoding Routine
 * Copyright (C) 2002 by Michael Dipperstein (mdipper@cs.ucsb.edu)
 *
 * This library is free software; you can redistribute it and/or
@@ -45,6 +58,7 @@
 #include <limits.h>
 #include <string.h>
 #include "bitop256.h"
+#include "bitfile.h"
 #include "getopt.h"
 
 /***************************************************************************
@@ -63,13 +77,6 @@ typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
 #if (USHRT_MAX != 65535)
 #error This program expects unsigned short to be 2 bytes
 #endif
-
-/* breaks count_t into array of byte_t */
-typedef union count_byte_t
-{
-    count_t count;
-    byte_t byte[sizeof(count_t)];
-} count_byte_t;
 
 typedef struct huffman_node_t
 {
@@ -111,7 +118,8 @@ typedef enum
 #define COUNT_T_MAX     UINT_MAX    /* based on count_t being unsigned int */
 
 #define COMPOSITE_NODE      -1      /* node represents multiple characters */
-#define NUM_CHARS           256     /* 256 1 byte symbols */
+#define NUM_CHARS           257     /* 256 bytes + EOF */
+#define EOF_CHAR    (NUM_CHARS - 1) /* index used for EOF */
 
 #define max(a, b) ((a)>(b)?(a):(b))
 
@@ -119,7 +127,6 @@ typedef enum
 *                            GLOBAL VARIABLES
 ***************************************************************************/
 huffman_node_t *huffmanArray[NUM_CHARS];        /* array of all leaves */
-count_t totalCount = 0;                         /* total number of chars */
 
 /***************************************************************************
 *                               PROTOTYPES
@@ -142,8 +149,8 @@ void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile);
 void DecodeFile(char *inFile, char *outFile);
 
 /* reading/writing tree to file */
-void WriteHeader(canonical_list_t *cl, FILE *fp);
-void ReadHeader(canonical_list_t *cl, FILE *fp);
+void WriteHeader(canonical_list_t *cl, bit_file_t *bfp);
+void ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -344,21 +351,23 @@ huffman_node_t *GenerateTreeFromFile(char *inFile)
         huffmanArray[c] = AllocHuffmanNode(c);
     }
 
+    /* assume that there will be exactly 1 EOF */
+    huffmanArray[EOF_CHAR]->count = 1;
+    huffmanArray[EOF_CHAR]->ignore = FALSE;
+
     /* count occurrence of each character */
     while ((c = fgetc(fp)) != EOF)
     {
-        if (totalCount < COUNT_T_MAX)
+        if (huffmanArray[c]->count < COUNT_T_MAX)
         {
-            totalCount++;
-
             /* increment count for character and include in tree */
-            huffmanArray[c]->count++;       /* check for overflow */
+            huffmanArray[c]->count++;
             huffmanArray[c]->ignore = FALSE;
         }
         else
         {
             fprintf(stderr,
-                "Number of characters in file is too large to count.\n");
+                "This file contains too many 0x%02X to count.\n", c);
             exit(EXIT_FAILURE);
         }
     }
@@ -786,22 +795,31 @@ void PrintCode(canonical_list_t *cl, char *outFile)
     {
         if(cl[i].codeLen > 0)
         {
-            printf("0x%02X  %02d       ", cl[i].value, cl[i].codeLen);
+            if (cl[i].value != EOF_CHAR)
+            {
+                fprintf(fp,
+                        "0x%02X  %02d       ", cl[i].value, cl[i].codeLen);
+            }
+            else
+            {
+                fprintf(fp,
+                        "EOF   %02d       ", cl[i].codeLen);
+            }
 
             /* now write out the code bits */
             for(length = 0; length < cl[i].codeLen; length++)
             {
                 if (TestBit256(cl[i].code, length))
                 {
-                    putchar('1');
+                    fputc('1', fp);
                 }
                 else
                 {
-                    putchar('0');
+                    fputc('0', fp);
                 }
             }
 
-            putchar('\n');
+            fputc('\n', fp);
         }
     }
 
@@ -824,9 +842,9 @@ void PrintCode(canonical_list_t *cl, char *outFile)
 ****************************************************************************/
 void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile)
 {
-    FILE *fpIn, *fpOut;
-    int c, i, bitCount;
-    char bitBuffer;
+    FILE *fpIn;
+    bit_file_t *bfpOut;
+    int c;
 
     /* open binary input and output files */
     if ((fpIn = fopen(inFile, "rb")) == NULL)
@@ -837,51 +855,31 @@ void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile)
 
     if (outFile == NULL)
     {
-        fpOut = stdout;
+        bfpOut = MakeBitFile(stdout, BF_WRITE);
     }
     else
     {
-        if ((fpOut = fopen(outFile, "wb")) == NULL)
+        if ((bfpOut = BitFileOpen(outFile, BF_WRITE)) == NULL)
         {
             perror(outFile);
             exit(EXIT_FAILURE);
         }
     }
 
-    WriteHeader(cl, fpOut);         /* write header for rebuilding of tree */
+    WriteHeader(cl, bfpOut);        /* write header for rebuilding of tree */
 
-    /* write encoded file 1 byte at a time */
-    bitBuffer = 0;
-    bitCount = 0;
 
     while((c = fgetc(fpIn)) != EOF)
     {
-
-        /* shift in bits */
-        for(i = 0; i < cl[c].codeLen; i++)
-        {
-            bitCount++;
-            bitBuffer = (bitBuffer << 1) |
-                (TestBit256(cl[c].code, i) != 0);
-
-            if (bitCount == 8)
-            {
-                /* we have a byte in the buffer */
-                fputc(bitBuffer, fpOut);
-                bitCount = 0;
-            }
-        }
+        /* write encoded symbols */
+        BitFilePutBits(bfpOut, (void *)cl[c].code, cl[c].codeLen);
     }
 
-    /* now handle spare bits */
-    if (bitCount != 0)
-    {
-        bitBuffer <<= 8 - bitCount;
-        fputc(bitBuffer, fpOut);
-    }
+    /* now write EOF */
+    BitFilePutBits(bfpOut, (void *)cl[EOF_CHAR].code, cl[EOF_CHAR].codeLen);
 
     fclose(fpIn);
-    fclose(fpOut);
+    BitFileClose(bfpOut);
 }
 
 /****************************************************************************
@@ -892,76 +890,20 @@ void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile)
 *                produced the original canonical code is used with these code
 *                lengths, an exact copy of the code will be produced.
 *   Parameters : cl - pointer to list of canonical Huffman codes
-*                fp - pointer to open binary file to write to.
+*                bfp - pointer to open binary file to write to.
 *   Effects    : Symbol code lengths and symbol count are written to the
 *                output file.
 *   Returned   : None
 ****************************************************************************/
-void WriteHeader(canonical_list_t *cl, FILE *fp)
+void WriteHeader(canonical_list_t *cl, bit_file_t *bfp)
 {
     int i;
-    count_byte_t byteUnion;
 
     /* write out code size for each symbol */
     for (i = 0; i < NUM_CHARS; i++)
     {
-        fputc(cl[i].codeLen, fp);
+        BitFilePutChar(cl[i].codeLen, bfp);
     }
-
-    /* now write out number of symbols encoded */
-    byteUnion.count = totalCount;
-    for(i = 0; i < sizeof(count_t); i++)
-    {
-        fputc(byteUnion.byte[i], fp);
-    }
-}
-
-/****************************************************************************
-*   Function   : GetBit
-*   Description: This function returns the next unread bit from a file.
-*                Bits of each byte are returned msb to lsb, while bytes are
-*                read from start of file to end of file.  Passing a different
-*                file pointer will flush any buffered bits.
-*   Parameters : fp - pointer file to read bits from.
-*   Effects    : If there are no buffered bits to return, the next byte of
-*                the file passed as a parameter is read.
-*   Returned   : EOF if there are no more bits in the file
-*                1 if the next bit is a 1
-*                0 if the next bit is a 0
-****************************************************************************/
-int GetBit(FILE *fp)
-{
-    static char bitsBuffered = 0;
-    static int buffer = 0;
-    static FILE *lastFp = NULL;
-    int retVal;
-
-    if (lastFp != fp)
-    {
-        /* we just started a new file */
-        bitsBuffered = 0;
-        buffer = 0;
-        lastFp = fp;
-    }
-
-    if (bitsBuffered == 0)
-    {
-        /* we need to read another byte */
-        buffer = fgetc(fp);
-
-        if (buffer == EOF)
-        {
-            return EOF;
-        }
-
-        bitsBuffered = 8;
-    }
-
-    /* determine value of msb and shift it out of the buffer */
-    retVal = ((0x80 & (char)buffer) != 0);
-    bitsBuffered--;
-    buffer = (char)buffer << 1;
-    return retVal;
 }
 
 /****************************************************************************
@@ -978,11 +920,13 @@ void DecodeFile(char *inFile, char *outFile)
     canonical_list_t *cl;
     code_t code[32];
     byte_t length;
+    char decodedEOF;
     int i, newBit;
     int lenIndex[257];
-    FILE *fpIn, *fpOut;
+    bit_file_t *bfpIn;
+    FILE *fpOut;
 
-    if ((fpIn = fopen(inFile, "rb")) == NULL)
+    if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
     {
         perror(inFile);
         exit(EXIT_FAILURE);
@@ -997,6 +941,7 @@ void DecodeFile(char *inFile, char *outFile)
     {
         if ((fpOut = fopen(outFile, "wb")) == NULL)
         {
+            BitFileClose(bfpIn);
             perror(outFile);
             exit(EXIT_FAILURE);
         }
@@ -1007,13 +952,13 @@ void DecodeFile(char *inFile, char *outFile)
     if (cl == NULL)
     {
         perror("Memory allocation");
-        fclose(fpIn);
+        BitFileClose(bfpIn);
         fclose(fpOut);
         exit(EXIT_FAILURE);
     }
 
     /* populate list with code length from file header */
-    ReadHeader(cl, fpIn);
+    ReadHeader(cl, bfpIn);
 
     /* sort the header by code length */
     qsort(cl, NUM_CHARS, sizeof(canonical_list_t), CompareByCodeLen);
@@ -1024,7 +969,7 @@ void DecodeFile(char *inFile, char *outFile)
     /* now we have a huffman code that matches the code used on the encode */
 
     /* create an index of first code at each possible length */
-    for (i = 0; i < 256; i++)
+    for (i = 0; i <= 256; i++)
     {
         lenIndex[i] = NUM_CHARS;
     }
@@ -1041,8 +986,9 @@ void DecodeFile(char *inFile, char *outFile)
     /* decode input file */
     length = 0;
     ClearAll256(code);
+    decodedEOF = FALSE;
 
-    while((newBit = GetBit(fpIn)) != EOF)
+    while(((newBit = BitFileGetBit(bfpIn)) != EOF) && (!decodedEOF))
     {
         if (newBit != 0)
         {
@@ -1062,10 +1008,13 @@ void DecodeFile(char *inFile, char *outFile)
                     (cl[i].codeLen == length))
                 {
                     /* we just read a symbol output decoded value */
-                    if (totalCount > 0)
+                    if (cl[i].value != EOF_CHAR)
                     {
                         fputc(cl[i].value, fpOut);
-                        totalCount--;
+                    }
+                    else
+                    {
+                        decodedEOF = TRUE;
                     }
                     ClearAll256(code);
                     length = 0;
@@ -1077,7 +1026,7 @@ void DecodeFile(char *inFile, char *outFile)
     }
 
     /* close all files */
-    fclose(fpIn);
+    BitFileClose(bfpIn);
     fclose(fpOut);
 
     /* free allocated memory */
@@ -1091,21 +1040,20 @@ void DecodeFile(char *inFile, char *outFile)
 *                original tree is used with these counts, an exact copy of
 *                the tree will be produced.
 *   Parameters : cl - pointer to list of canonical Huffman codes
-*                inFile - file to read from
+*                bfp - file to read from
 *   Effects    : Code lengths and symbols are read into the canonical list.
 *                Total number of symbols encoded is store in totalCount
 *   Returned   : None
 ****************************************************************************/
-void ReadHeader(canonical_list_t *cl, FILE *fp)
+void ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
 {
     int c;
     int i;
-    count_byte_t byteUnion;
 
     /* read the code length */
     for (i = 0; i < NUM_CHARS; i++)
     {
-        c = fgetc(fp);
+        c = BitFileGetChar(bfp);
 
         if (c != EOF)
         {
@@ -1118,11 +1066,4 @@ void ReadHeader(canonical_list_t *cl, FILE *fp)
             /* should probably handle short header */
         }
     }
-
-    /* now read the number of symbols eoncoded */
-    for(i = 0; i < sizeof(count_t); i++)
-    {
-        byteUnion.byte[i] = fgetc(fp);
-    }
-    totalCount = byteUnion.count;
 }

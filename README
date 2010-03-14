@@ -12,6 +12,8 @@ FILES
 bitop256.c      - Library to allow array of 32 unsigned characters to be
                   treated as an array of 256 bits.
 bitop256.h      - Header for bitop256 library.
+bitfile.c       - Library to allow bitwise reading and writing of files.
+bitfile.h       - Header for bitfile library.
 COPYING         - Rules for copying and distributing LGPL software
 getopt.c        - LGPL version of getopt source from GNU project
 getopt.h        - LGPL version of getopt headers from GNU project
@@ -67,7 +69,8 @@ HISTORY
             Makefile.
 11/20/03  - Correctly handle symbol codes that are over 16 bits long.  These
             changes can handle codes up to 255 bits long.
-12/02/03  - Incorporate latest version of bitop256 library
+01/05/04  - Encode EOF along with other symbols
+01/12/04  - Use bit stream file library
 
 TODO
 ----

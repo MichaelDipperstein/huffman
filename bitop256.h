@@ -10,10 +10,12 @@
 ****************************************************************************
 *   UPDATES
 *
-*   Date        Change
-*   12/01/03    Return overflow/underflow for increment/decrement
-*               1 to 7 bits all at once.
-*   12/01/03    Added addition and subtraction operations
+*
+*   $Id: bitop256.h,v 1.2 2004/01/13 15:46:39 michael Exp $
+*   $Log: bitop256.h,v $
+*   Revision 1.2  2004/01/13 15:46:39  michael
+*   Add CVS header
+*
 *
 ****************************************************************************
 *
@@ -72,17 +74,9 @@ void Not256(unsigned char *bits);
 void LeftShift256(unsigned char *bits, int shifts);
 void RightShift256(unsigned char *bits, int shifts);
 
-/* increment/decrement (retun true for over/underflow) */
-int Increment256(unsigned char *bits);
-int Decrement256(unsigned char *bits);
-
-int Add256(unsigned char *dest,
-           const unsigned char *src1,
-           const unsigned char *src2);
-
-int Subtract256(unsigned char *dest,
-                const unsigned char *src1,
-                const unsigned char *src2);
+/* increment/decrement */
+void Increment256(unsigned char *bits);
+void Decrement256(unsigned char *bits);
 
 /* comparison */
 int Compare256(const unsigned char *bits1, const unsigned char *bits2);

@@ -17,6 +17,17 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
+*   $Id: huffman.c,v 1.4 2004/01/13 15:49:45 michael Exp $
+*   $Log: huffman.c,v $
+*   Revision 1.4  2004/01/13 15:49:45  michael
+*   Beautify header
+*
+*   Revision 1.3  2004/01/13 05:45:17  michael
+*   Use bit stream library.
+*
+*   Revision 1.2  2004/01/05 04:04:58  michael
+*   Use encoded EOF instead of counting characters.
+*
 ****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
@@ -46,6 +57,7 @@
 #include <limits.h>
 #include <string.h>
 #include "bitop256.h"
+#include "bitfile.h"
 #include "getopt.h"
 
 /***************************************************************************
@@ -72,13 +84,6 @@
 typedef unsigned char byte_t;       /* unsigned 8 bit */
 typedef unsigned char code_t;       /* unsigned 8 bit for character codes */
 typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
-
-/* breaks count_t into array of byte_t */
-typedef union count_byte_t
-{
-    count_t count;
-    byte_t byte[sizeof(count_t)];
-} count_byte_t;
 
 typedef struct huffman_node_t
 {
@@ -119,7 +124,8 @@ typedef enum
 #define COUNT_T_MAX     UINT_MAX    /* based on count_t being unsigned int */
 
 #define COMPOSITE_NODE      -1      /* node represents multiple characters */
-#define NUM_CHARS           256     /* 256 possible 1-byte symbols */
+#define NUM_CHARS           257     /* 256 bytes + EOF */
+#define EOF_CHAR    (NUM_CHARS - 1) /* index used for EOF */
 
 #define max(a, b) ((a)>(b)?(a):(b))
 
@@ -127,7 +133,6 @@ typedef enum
 *                            GLOBAL VARIABLES
 ***************************************************************************/
 huffman_node_t *huffmanArray[NUM_CHARS];        /* array of all leaves */
-count_t totalCount = 0;                         /* total number of chars */
 
 /***************************************************************************
 *                               PROTOTYPES
@@ -149,8 +154,8 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile);
 void MakeCodeList(huffman_node_t *ht, code_list_t *cl);
 
 /* reading/writing tree to file */
-void WriteHeader(huffman_node_t *ht, FILE *fp);
-void ReadHeader(huffman_node_t **ht, FILE *fp);
+void WriteHeader(huffman_node_t *ht, bit_file_t *bfp);
+void ReadHeader(huffman_node_t **ht, bit_file_t *bfp);
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -335,21 +340,23 @@ huffman_node_t *GenerateTreeFromFile(char *inFile)
         huffmanArray[c] = AllocHuffmanNode(c);
     }
 
+    /* assume that there will be exactly 1 EOF */
+    huffmanArray[EOF_CHAR]->count = 1;
+    huffmanArray[EOF_CHAR]->ignore = FALSE;
+
     /* count occurrence of each character */
     while ((c = fgetc(fp)) != EOF)
     {
-        if (totalCount < COUNT_T_MAX)
+        if (huffmanArray[c]->count < COUNT_T_MAX)
         {
-            totalCount++;
-
             /* increment count for character and include in tree */
-            huffmanArray[c]->count++;       /* check for overflow */
+            huffmanArray[c]->count++;
             huffmanArray[c]->ignore = FALSE;
         }
         else
         {
             fprintf(stderr,
-                "Number of characters in file is too large to count.\n");
+                "This file contains too many 0x%02X to count.\n", c);
             exit(EXIT_FAILURE);
         }
     }
@@ -495,6 +502,7 @@ int FindMinimumCount(huffman_node_t **ht, int elements)
             currentLevel = ht[i]->level;
         }
     }
+
     return currentIndex;
 }
 
@@ -557,7 +565,7 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
 ****************************************************************************/
 void PrintCode(huffman_node_t *ht, char *outFile)
 {
-    char code[256];
+    char code[NUM_CHARS - 1];
     int depth = 0;
     FILE *fp;
 
@@ -601,7 +609,14 @@ void PrintCode(huffman_node_t *ht, char *outFile)
             /* we hit a character node, print its code */
             code[depth] = '\0';
 
-            fprintf(fp, "0x%02X  %10d %s\n", ht->value, ht->count, code);
+            if (ht->value != EOF_CHAR)
+            {
+                fprintf(fp, "0x%02X  %10d %s\n", ht->value, ht->count, code);
+            }
+            else
+            {
+                fprintf(fp, "EOF   %10d %s\n", ht->count, code);
+            }
         }
 
         while (ht->parent != NULL)
@@ -649,9 +664,9 @@ void PrintCode(huffman_node_t *ht, char *outFile)
 void EncodeFile(huffman_node_t *ht, char *inFile, char *outFile)
 {
     code_list_t codeList[NUM_CHARS];    /* table for quick encode */
-    FILE *fpIn, *fpOut;
-    int c, i, bitCount;
-    char bitBuffer;
+    FILE *fpIn;
+    bit_file_t *bfpOut;
+    int c;
 
     /* open binary input and output files */
     if ((fpIn = fopen(inFile, "rb")) == NULL)
@@ -662,53 +677,34 @@ void EncodeFile(huffman_node_t *ht, char *inFile, char *outFile)
 
     if (outFile == NULL)
     {
-        fpOut = stdout;
+        bfpOut = MakeBitFile(stdout, BF_WRITE);
     }
     else
     {
-        if ((fpOut = fopen(outFile, "wb")) == NULL)
+        if ((bfpOut = BitFileOpen(outFile, BF_WRITE)) == NULL)
         {
             perror(outFile);
             FreeHuffmanTree(ht);
+            fclose(fpIn);
             exit(EXIT_FAILURE);
         }
     }
 
-    WriteHeader(ht, fpOut);         /* write header for rebuilding of tree */
+    WriteHeader(ht, bfpOut);        /* write header for rebuilding of tree */
     MakeCodeList(ht, codeList);     /* convert code to easy to use list */
 
-    /* write encoded file 1 byte at a time */
-    bitBuffer = 0;
-    bitCount = 0;
-
+    /* read character and write it to encoded file */
     while((c = fgetc(fpIn)) != EOF)
     {
-
-        /* shift in bits */
-        for(i = 0; i < codeList[c].codeLen; i++)
-        {
-            bitCount++;
-            bitBuffer = (bitBuffer << 1) |
-                (TestBit256(codeList[c].code, i) == 1);
-
-            if (bitCount == 8)
-            {
-                /* we have a byte in the buffer */
-                fputc(bitBuffer, fpOut);
-                bitCount = 0;
-            }
-        }
+        BitFilePutBits(bfpOut, codeList[c].code, codeList[c].codeLen);
     }
 
-    /* now handle spare bits */
-    if (bitCount != 0)
-    {
-        bitBuffer <<= 8 - bitCount;
-        fputc(bitBuffer, fpOut);
-    }
+    /* now write EOF */
+    BitFilePutBits(bfpOut, codeList[EOF_CHAR].code,
+        codeList[EOF_CHAR].codeLen);
 
     fclose(fpIn);
-    fclose(fpOut);
+    BitFileClose(bfpOut);
 }
 
 /****************************************************************************
@@ -784,13 +780,12 @@ void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
 *                produced the original tree is used with these counts, an
 *                exact copy of the tree will be produced.
 *   Parameters : ht - pointer to root of huffman tree
-*                fp - pointer to open binary file to write to.
+*                bfp - pointer to open binary file to write to.
 *   Effects    : Symbol values and symbol counts are written to a file.
 *   Returned   : None
 ****************************************************************************/
-void WriteHeader(huffman_node_t *ht, FILE *fp)
+void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
 {
-    count_byte_t byteUnion;
     int i;
 
     for(;;)
@@ -801,16 +796,12 @@ void WriteHeader(huffman_node_t *ht, FILE *fp)
             ht = ht->left;
         }
 
-        if (ht->value != COMPOSITE_NODE)
+        if ((ht->value != COMPOSITE_NODE) &&
+            (ht->value != EOF_CHAR))
         {
             /* write symbol and count to header */
-            fputc(ht->value, fp);
-
-            byteUnion.count = ht->count;
-            for(i = 0; i < sizeof(count_t); i++)
-            {
-                fputc(byteUnion.byte[i], fp);
-            }
+            BitFilePutChar(ht->value, bfp);
+            BitFilePutBits(bfp, (void *)&(ht->count), 8 * sizeof(count_t));
         }
 
         while (ht->parent != NULL)
@@ -835,10 +826,10 @@ void WriteHeader(huffman_node_t *ht, FILE *fp)
     }
 
     /* now write end of table char 0 count 0 */
-    fputc(0, fp);
+    BitFilePutChar(0, bfp);
     for(i = 0; i < sizeof(count_t); i++)
     {
-        fputc(0, fp);
+        BitFilePutChar(0, bfp);
     }
 }
 
@@ -856,9 +847,10 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile)
 {
     huffman_node_t *huffmanTree, *currentNode;
     int i, c;
-    FILE *fpIn, *fpOut;
+    bit_file_t *bfpIn;
+    FILE *fpOut;
 
-    if ((fpIn = fopen(inFile, "rb")) == NULL)
+    if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
     {
         perror(inFile);
         exit(EXIT_FAILURE);
@@ -873,6 +865,7 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile)
     {
         if ((fpOut = fopen(outFile, "wb")) == NULL)
         {
+            BitFileClose(bfpIn);
             perror(outFile);
             exit(EXIT_FAILURE);
         }
@@ -885,7 +878,7 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile)
     }
 
     /* populate leaves with frequency information from file header */
-    ReadHeader(ht, fpIn);
+    ReadHeader(ht, bfpIn);
 
     /* put array of leaves into a huffman tree */
     huffmanTree = BuildHuffmanTree(ht, NUM_CHARS);
@@ -893,53 +886,34 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile)
     /* now we should have a tree that matches the tree used on the encode */
     currentNode = huffmanTree;
 
-    /* handle one symbol codes */
-    if (currentNode->value != COMPOSITE_NODE)
-    {
-        while ((c = fgetc(fpIn)) != EOF);    /* read to force EOF below */
-
-        /* now just write out number of required symbols */
-        while(totalCount)
-        {
-            fputc(currentNode->value, fpOut);
-            totalCount--;
-        }
-    }
-
-    while ((c = fgetc(fpIn)) != EOF)
+    while ((c = BitFileGetBit(bfpIn)) != EOF)
     {
         /* traverse the tree finding matches for our characters */
-        for(i = 0; i < 8; i++)
+        if (c != 0)
         {
-            if (c & 0x80)
-            {
-                currentNode = currentNode->right;
-            }
-            else
-            {
-                currentNode = currentNode->left;
-            }
+            currentNode = currentNode->right;
+        }
+        else
+        {
+            currentNode = currentNode->left;
+        }
 
-            if (currentNode->value != COMPOSITE_NODE)
+        if (currentNode->value != COMPOSITE_NODE)
+        {
+            /* we've found a character */
+            if (currentNode->value == EOF_CHAR)
             {
-                /* we've found a character */
-                fputc(currentNode->value, fpOut);
-                currentNode = huffmanTree;
-                totalCount--;
-
-                if (totalCount == 0)
-                {
-                    /* we've just written the last character */
-                    break;
-                }
+                /* we've just read the EOF */
+                break;
             }
 
-            c <<= 1;
+            fputc(currentNode->value, fpOut);
+            currentNode = huffmanTree;
         }
     }
 
     /* close all files */
-    fclose(fpIn);
+    BitFileClose(bfpIn);
     fclose(fpOut);
     FreeHuffmanTree(huffmanTree);     /* free allocated memory */
 }
@@ -955,27 +929,26 @@ void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile)
 *   Effects    : Frequency information is read into the node of ht
 *   Returned   : None
 ****************************************************************************/
-void ReadHeader(huffman_node_t **ht, FILE *fp)
+void ReadHeader(huffman_node_t **ht, bit_file_t *bfp)
 {
-    count_byte_t byteUnion;
+    count_t count;
     int c;
-    int i;
 
-    while ((c = fgetc(fp)) != EOF)
+    while ((c = BitFileGetChar(bfp)) != EOF)
     {
-        for (i = 0; i < sizeof(count_t); i++)
-        {
-            byteUnion.byte[i] = (byte_t)fgetc(fp);
-        }
+        BitFileGetBits(bfp, (void *)(&count), 8 * sizeof(count_t));
 
-        if ((byteUnion.count == 0) && (c == 0))
+        if ((count == 0) && (c == 0))
         {
             /* we just read end of table marker */
             break;
         }
 
-        ht[c]->count = byteUnion.count;
+        ht[c]->count = count;
         ht[c]->ignore = FALSE;
-        totalCount += byteUnion.count;
     }
+
+    /* add assumed EOF */
+    ht[EOF_CHAR]->count = 1;
+    ht[EOF_CHAR]->ignore = FALSE;
 }

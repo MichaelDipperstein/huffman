@@ -10,12 +10,15 @@
 ****************************************************************************
 *   UPDATES
 *
-*   Date        Change
-*   12/01/03    Modified Left and Right shifts to shift the remaining
-*               1 to 7 bits all at once.
-*   12/01/03    Return overflow/underflow for increment/decrement
-*               1 to 7 bits all at once.
-*   12/01/03    Added addition and subtraction operations
+*
+*   $Id: bitop256.c,v 1.4 2004/01/13 15:46:25 michael Exp $
+*   $Log: bitop256.c,v $
+*   Revision 1.4  2004/01/13 15:46:25  michael
+*   Beautify header
+*
+*   Revision 1.3  2004/01/11 08:49:13  michael
+*   Add CVS Log
+*
 *
 ****************************************************************************
 *
@@ -53,8 +56,8 @@
 #endif
 
 #define NUM_BITS    256
-#define NUM_BYTES   32      /* 32 x 8 = 256 */
-#define LAST_BYTE   31      /* bytes are numbered 0 .. 31 */
+#define NUM_BYTES   (NUM_BITS / 8)  /* 32 x 8 = 256 */
+#define LAST_BYTE   (NUM_BYTES - 1) /* bytes are numbered 0 .. 31 */
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -188,7 +191,7 @@ void Copy256(unsigned char *dest, const unsigned char *src)
 *                32 unsigned characters, storing the results in a third
 *                array of 32 unsigned characters.
 *   Parameters : dest - pointer to destination array of 32 unsigned char
-*                       (256 bits).  dest may be identical to src1 or src2.
+*                       (256 bits).
 *                src1 - pointer to first source array of 32 unsigned char
 *                       (256 bits).
 *                src1 - pointer to second source array of 32 unsigned char
@@ -215,7 +218,7 @@ void And256(unsigned char *dest,
 *                32 unsigned characters, storing the results in a third
 *                array of 32 unsigned characters.
 *   Parameters : dest - pointer to destination array of 32 unsigned char
-*                       (256 bits).  dest may be identical to src1 or src2.
+*                       (256 bits).
 *                src1 - pointer to first source array of 32 unsigned char
 *                       (256 bits).
 *                src1 - pointer to second source array of 32 unsigned char
@@ -242,7 +245,7 @@ void Or256(unsigned char *dest,
 *                32 unsigned characters, storing the results in a third
 *                array of 32 unsigned characters.
 *   Parameters : dest - pointer to destination array of 32 unsigned char
-*                       (256 bits).  dest may be identical to src1 or src2.
+*                       (256 bits).
 *                src1 - pointer to first source array of 32 unsigned char
 *                       (256 bits).
 *                src1 - pointer to second source array of 32 unsigned char
@@ -297,8 +300,7 @@ void Not256(unsigned char *bits)
 ****************************************************************************/
 void LeftShift256(unsigned char *bits, int shifts)
 {
-    int i;
-    unsigned int overflow;
+    int i, j;
     int bytes = shifts / 8;     /* number of whole byte shifts */
     shifts = shifts % 8;        /* number of bit shifts remaining */
 
@@ -317,23 +319,21 @@ void LeftShift256(unsigned char *bits, int shifts)
         }
     }
 
-    /* now handle the remaining shifts (no more than 7 bits) */
-    if (shifts > 0)
+    /* now we have at most 7 single bit shifts across the whole array */
+    for (i = 0; i < shifts; i++)
     {
-        bits[0] <<= shifts;
-
-        for (i = 1; i < NUM_BYTES; i++)
+        for (j = 0; j < LAST_BYTE; j++)
         {
-            overflow = bits[i];
-            overflow <<= shifts;
-            bits[i] = (unsigned char)overflow;
+            bits[j] <<= 1;
 
             /* handle shifts across byte bounds */
-            if (overflow & 0xFF00)
+            if (bits[j + 1] & 0x80)
             {
-                bits[i - 1] |= (unsigned char)(overflow >> 8);
+                bits[j] |= 0x01;
             }
         }
+
+        bits[LAST_BYTE] <<= 1;
     }
 }
 
@@ -349,8 +349,7 @@ void LeftShift256(unsigned char *bits, int shifts)
 ****************************************************************************/
 void RightShift256(unsigned char *bits, int shifts)
 {
-    int i;
-    unsigned int overflow;
+    int i, j;
     int bytes = shifts / 8;     /* number of whole byte shifts */
     shifts = shifts % 8;        /* number of bit shifts remaining */
 
@@ -369,23 +368,21 @@ void RightShift256(unsigned char *bits, int shifts)
         }
     }
 
-    /* now handle the remaining shifts (no more than 7 bits) */
-    if (shifts > 0)
+    /* now we have at most 7 single bit shifts across the whole array */
+    for (i = 0; i < shifts; i++)
     {
-        bits[LAST_BYTE] >>= shifts;
-
-        for (i = LAST_BYTE - 1; i >= 0; i--)
+        for (j = LAST_BYTE; j > 0; j--)
         {
-            overflow = bits[i];
-            overflow <<= (8 - shifts);
-            bits[i] = (unsigned char)(overflow >> 8);
+            bits[j] >>= 1;
 
             /* handle shifts across byte bounds */
-            if (overflow & 0xFF)
+            if (bits[j - 1] & 0x01)
             {
-                bits[i + 1] |= (unsigned char)overflow;
+                bits[j] |= 0x80;
             }
         }
+
+        bits[0] >>= 1;
     }
 }
 
@@ -398,9 +395,9 @@ void RightShift256(unsigned char *bits, int shifts)
 *                       the increment operation.
 *   Effects    : 'bits' will contain the results of a increment operation
 *                performed on itself.
-*   Returned   : 1 if overflow, otherwise 0
+*   Returned   : NONE
 ****************************************************************************/
-int Increment256(unsigned char *bits)
+void Increment256(unsigned char *bits)
 {
     int i;
 
@@ -409,22 +406,14 @@ int Increment256(unsigned char *bits)
         if (bits[i] != 0xFF)
         {
             bits[i] = bits[i] + 1;
-            break;
+            return;
         }
         else
         {
             /* need to carry to next byte */
             bits[i] = 0;
-
-            if (i == 0)
-            {
-                /* we had an overflow */
-                return 1;
-            }
         }
     }
-
-    return 0;
 }
 
 /****************************************************************************
@@ -436,9 +425,9 @@ int Increment256(unsigned char *bits)
 *                       the increment operation.
 *   Effects    : 'bits' will contain the results of a increment operation
 *                performed on itself.
-*   Returned   : 1 if underflow, otherwise 0
+*   Returned   : NONE
 ****************************************************************************/
-int Decrement256(unsigned char *bits)
+void Decrement256(unsigned char *bits)
 {
     int i;
 
@@ -447,103 +436,14 @@ int Decrement256(unsigned char *bits)
         if (bits[i] != 0x00)
         {
             bits[i] = bits[i] - 1;
-            break;
+            return;
         }
         else
         {
             /* need to borrow from the next byte */
             bits[i] = 0xFF;
-
-            if (i == 0)
-            {
-                /* we had an underflow */
-                return 1;
-            }
         }
     }
-
-    return 0;
-}
-
-/****************************************************************************
-*   Function   : Add256
-*   Description: This function performs addition on two arrays of 32
-*                unsigned characters, storing the results in a third array
-*                of 32 unsigned characters.
-*   Parameters : dest - pointer to destination array of 32 unsigned char
-*                       (256 bits).  dest may be identical to src1 or src2.
-*                src1 - pointer to first source array of 32 unsigned char
-*                       (256 bits).
-*                src1 - pointer to second source array of 32 unsigned char
-*                       (256 bits).
-*   Effects    : dest will contain the sum of src1 and src2.
-*   Returned   : 1 if overflow, otherwise 0
-****************************************************************************/
-int Add256(unsigned char *dest,
-           const unsigned char *src1,
-           const unsigned char *src2)
-{
-    int i;
-    unsigned int tempReg;
-
-    tempReg = 0;
-
-    /* do bytewise addition with carry */
-    for (i = LAST_BYTE; i >= 0; i--)
-    {
-        tempReg >>= 8;  /* shift carried bits from previous bytes */
-        tempReg += (unsigned int)src1[i] + (unsigned int)src2[i];
-        dest[i] = (unsigned char)tempReg & 0xFF;
-    }
-
-    /* did we carry on our last addition? */
-    return ((tempReg >> 8) != 0);
-}
-
-/****************************************************************************
-*   Function   : Subtract256
-*   Description: This function performs subtraction on two arrays of 32
-*                unsigned characters, storing the results in a third array
-*                of 32 unsigned characters.
-*   Parameters : dest - pointer to destination array of 32 unsigned char
-*                       (256 bits).  dest may be identical to src1 or src2.
-*                src1 - pointer to first source array of 32 unsigned char
-*                       (256 bits).
-*                src1 - pointer to second source array of 32 unsigned char
-*                       (256 bits).
-*   Effects    : dest will contain the difference between src1 and src2.
-*   Returned   : 1 if underflow, otherwise 0
-****************************************************************************/
-int Subtract256(unsigned char *dest,
-                const unsigned char *src1,
-                const unsigned char *src2)
-{
-    int i;
-    unsigned int tempReg;
-
-    /* start with something to borrow from */
-    tempReg = 0x100;
-
-    /* do bytewise subtraction with carry */
-    for (i = LAST_BYTE; i >= 0; i--)
-    {
-        tempReg &= 0x100;   /* clear out old value */
-        if (tempReg == 0)
-        {
-            /***************************************************************
-            * A borrow occurred, set to 0xFF (-1).  When the current byte
-            * is added to this, it will decrement it by one and put back
-            * a borrow bit.
-            ***************************************************************/
-            tempReg = 0xFF;
-        }
-
-        tempReg += (unsigned int)src1[i] - (unsigned int)src2[i];
-        dest[i] = (unsigned char)tempReg & 0xFF;
-    }
-
-    /* did we borrow on our last subtraction? */
-    return ((tempReg >> 8) == 0);
 }
 
 /****************************************************************************
