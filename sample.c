@@ -10,8 +10,12 @@
 ****************************************************************************
 *   UPDATES
 *
-*   $Id: sample.c,v 1.2 2004/06/15 13:40:28 michael Exp $
+*   $Id: sample.c,v 1.3 2007/09/20 03:30:30 michael Exp $
 *   $Log: sample.c,v $
+*   Revision 1.3  2007/09/20 03:30:30  michael
+*   Replace getopt with optlist.
+*   Changes required for LGPL v3.
+*
 *   Revision 1.2  2004/06/15 13:40:28  michael
 *   Add -C option for canonical.
 *   Handle both traditional and canonical codes.
@@ -23,21 +27,23 @@
 ****************************************************************************
 *
 * sample: An ANSI C Huffman Encoding/Decoding Library Examples
-* Copyright (C) 2004 by Michael Dipperstein (mdipper@cs.ucsb.edu)
+* Copyright (C) 2004, 2007 by
+* Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
-* This library is free software; you can redistribute it and/or
-* modify it under the terms of the GNU Lesser General Public
-* License as published by the Free Software Foundation; either
-* version 2.1 of the License, or (at your option) any later version.
+* This file is part of the Huffman library.
 *
-* This library is distributed in the hope that it will be useful,
+* The Huffman library is free software; you can redistribute it and/or
+* modify it under the terms of the GNU Lesser General Public License as
+* published by the Free Software Foundation; either version 3 of the
+* License, or (at your option) any later version.
+*
+* The Huffman library is distributed in the hope that it will be useful,
 * but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* Lesser General Public License for more details.
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+* General Public License for more details.
 *
-* You should have received a copy of the GNU Lesser General Public
-* License along with this library; if not, write to the Free Software
-* Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+* You should have received a copy of the GNU Lesser General Public License
+* along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *
 ***************************************************************************/
 
@@ -48,7 +54,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "huffman.h"
-#include "getopt.h"
+#include "optlist.h"
 
 /***************************************************************************
 *                            TYPE DEFINITIONS
@@ -86,7 +92,8 @@ typedef enum
 ****************************************************************************/
 int main (int argc, char *argv[])
 {
-    int opt, status, canonical;
+    int status, canonical;
+    option_t *optList, *thisOpt;
     char *inFile, *outFile;
     MODES mode;
 
@@ -97,9 +104,12 @@ int main (int argc, char *argv[])
     canonical = 0;
 
     /* parse command line */
-    while ((opt = getopt(argc, argv, "Ccdtni:o:h?")) != -1)
+    optList = GetOptList(argc, argv, "Ccdtni:o:h?");
+    thisOpt = optList;
+
+    while (thisOpt != NULL)
     {
-        switch(opt)
+        switch(thisOpt->option)
         {
             case 'C':       /* use canonical code */
                 canonical = 1;
@@ -128,9 +138,11 @@ int main (int argc, char *argv[])
                         free(outFile);
                     }
 
+                    FreeOptList(optList);
                     exit(EXIT_FAILURE);
                 }
-                else if ((inFile = (char *)malloc(strlen(optarg) + 1)) == NULL)
+                else if ((inFile =
+                    (char *)malloc(strlen(thisOpt->argument) + 1)) == NULL)
                 {
                     perror("Memory allocation");
 
@@ -139,10 +151,11 @@ int main (int argc, char *argv[])
                         free(outFile);
                     }
 
+                    FreeOptList(optList);
                     exit(EXIT_FAILURE);
                 }
 
-                strcpy(inFile, optarg);
+                strcpy(inFile, thisOpt->argument);
                 break;
 
             case 'o':       /* output file name */
@@ -156,9 +169,11 @@ int main (int argc, char *argv[])
                         free(inFile);
                     }
 
+                    FreeOptList(optList);
                     exit(EXIT_FAILURE);
                 }
-                else if ((outFile = (char *)malloc(strlen(optarg) + 1)) == NULL)
+                else if ((outFile =
+                    (char *)malloc(strlen(thisOpt->argument) + 1)) == NULL)
                 {
                     perror("Memory allocation");
 
@@ -167,10 +182,11 @@ int main (int argc, char *argv[])
                         free(inFile);
                     }
 
+                    FreeOptList(optList);
                     exit(EXIT_FAILURE);
                 }
 
-                strcpy(outFile, optarg);
+                strcpy(outFile, thisOpt->argument);
                 break;
 
             case 'h':
@@ -185,8 +201,14 @@ int main (int argc, char *argv[])
                 printf("  -o<filename> : Name of output file.\n");
                 printf("  -h|?  : Print out command line options.\n\n");
                 printf("Default: huffman -t -ostdout\n");
+
+                FreeOptList(optList);
                 return(EXIT_SUCCESS);
         }
+
+        optList = thisOpt->next;
+        free(thisOpt);
+        thisOpt = optList;
     }
 
     /* validate command line */

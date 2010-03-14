@@ -1,8 +1,12 @@
 ############################################################################
 # Makefile for huffman encode/decode programs
 #
-#   $Id: Makefile,v 1.7 2005/05/23 03:18:04 michael Exp $
+#   $Id: Makefile,v 1.8 2007/09/20 03:30:30 michael Exp $
 #   $Log: Makefile,v $
+#   Revision 1.8  2007/09/20 03:30:30  michael
+#   Replace getopt with optlist.
+#   Changes required for LGPL v3.
+#
 #   Revision 1.7  2005/05/23 03:18:04  michael
 #   Moved internal routines and definitions common to both canonical and
 #   traditional Huffman coding so that they are only declared once.
@@ -26,7 +30,7 @@ CFLAGS = -O3 -Wall -ansi -pedantic -c
 LDFLAGS = -O3 -o
 
 # libraries
-LIBS = -L. -lhuffman -lgetopt
+LIBS = -L. -lhuffman -loptlist
 
 # Treat NT and non-NT windows the same
 ifeq ($(OS),Windows_NT)
@@ -43,10 +47,10 @@ endif
 
 all:		sample$(EXE)
 
-sample$(EXE):	sample.o libhuffman.a libgetopt.a
+sample$(EXE):	sample.o libhuffman.a liboptlist.a
 		$(LD) $^ $(LIBS) $(LDFLAGS) $@
 
-sample.o:	sample.c huffman.h getopt.h
+sample.o:	sample.c huffman.h optlist.h
 		$(CC) $(CFLAGS) $<
 
 libhuffman.a:	huffman.o chuffman.o huflocal.o bitarray.o bitfile.o
@@ -69,11 +73,11 @@ bitarray.o:	bitarray.c bitarray.h
 bitfile.o:	bitfile.c bitfile.h
 		$(CC) $(CFLAGS) $<
 
-libgetopt.a:    getopt.o
-		ar crv libgetopt.a getopt.o
-		ranlib libgetopt.a
+liboptlist.a:	optlist.o
+		ar crv liboptlist.a optlist.o
+		ranlib liboptlist.a
 
-getopt.o:	getopt.c getopt.h
+optlist.o:	optlist.c optlist.h
 		$(CC) $(CFLAGS) $<
 
 clean:

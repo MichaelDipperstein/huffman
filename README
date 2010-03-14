@@ -16,17 +16,17 @@ bitarray.h      - Header for bit array library.
 bitfile.c       - Library to allow bitwise reading and writing of files.
 bitfile.h       - Header for bitfile library.
 chuffman.c      - Huffman encoding and decoding routines using canonical codes
-COPYING         - Rules for copying and distributing LGPL software
-getopt.c        - LGPL version of getopt source from GNU project
-getopt.h        - LGPL version of getopt headers from GNU project
+COPYING         - Rules for copying and distributing GPL software
+COPYING.LESSER  - Rules for copying and distributing LGPL software
 huffman.c       - Huffman encoding and decoding routines
-huffman.h       - Header file used by code calling library functions 
+huffman.h       - Header file used by code calling library functions
 huflocal.h      - Header file with internal library definitions common to both
                   canonical and conventional techniques
 huflocal.c      - File with internal library functions common to both canonical
                   and conventional techniques
-LICENSE         - GNU Lesser General Public License
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
+optlist.c       - Source code for GetOptlist function and supporting functions
+optlist.h       - Header file to be included by code using the optlist library
 README          - this file
 sample.c        - Demonstration of how to use Huffman library functions
 
@@ -94,6 +94,8 @@ HISTORY
           - Makefile builds libraries for easier LGPL compliance.
 06/21/05  - Corrected BitFileGetBits/PutBits error that accessed an extra
             byte when given an integral number of bytes.
+08/29/07  - Explicitly licensed under LGPL version 3.
+          - Replaces getopt() with optlist library.
 
 TODO
 ----
