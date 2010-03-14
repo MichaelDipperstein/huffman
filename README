@@ -92,6 +92,8 @@ HISTORY
 05/22/05  - Provides single declaration for items common canonical and
             traditional encoding source
           - Makefile builds libraries for easier LGPL compliance.
+06/21/05  - Corrected BitFileGetBits/PutBits error that accessed an extra
+            byte when given an integral number of bytes.
 
 TODO
 ----
