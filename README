@@ -1,0 +1,81 @@
+DESCRIPTION
+-----------
+This archive contains a simple and readable ANSI C implementation of Huffman
+coding and decoding.  This implementation is not intended to be the best,
+fastest, smallest, or any other performance related adjective.
+
+More information on Huffman encoding may be found at:
+http://datacompression.info/Huffman.shtml
+
+FILES
+-----
+bitop256.c      - Library to allow array of 32 unsigned characters to be
+                  treated as an array of 256 bits.
+bitop256.h      - Header for bitop256 library.
+COPYING         - Rules for copying and distributing LGPL software
+getopt.c        - LGPL version of getopt source from GNU project
+getopt.h        - LGPL version of getopt headers from GNU project
+huffman.c       - Huffman encoding and decoding routines
+chuffman.c      - Huffman encoding and decoding routines using canonical codes
+LICENSE         - GNU Lesser General Public License
+Makefile        - makefile for this project (assumes gcc compiler and GNU make)
+README          - this file
+
+BUILDING
+--------
+To build these files with GNU make and gcc, simply enter "make" from the
+command line.
+
+USAGE
+-----
+Usage: huffman <options>
+       - or -
+       chuffman <options>
+
+options:
+  -c : Encode input file to output file.
+  -d : Decode input file to output file.
+  -t : Generate code tree for input file to output file.
+  -i <filename> : Name of input file.
+  -o <filename> : Name of output file.
+  -h|?  : Print out command line options.
+
+-c      Generates a Huffman tree for the specified input file (see -i) and
+        compresses a file using the tree to the specified output file (see -o).
+
+-d      Decompresses the specified input file (see -i) writing the results to
+        the specified output file (see -o).  Only files compressed by this
+        program may be decompressed.
+
+-t      Generates a Huffman tree for the specified input file (see -i) and
+        writes the resulting code to the specified output file (see -o).
+
+-i <filename>   The name of the input file.  There is no valid usage of this
+                program without a specified input file.
+
+-o <filename>   The name of the output file.  If no file is specified, stdout
+                will be used.  NOTE: Sending compressed output to stdout may
+                produce undesirable results.
+
+HISTORY
+-------
+10/23/03  - Corrected errors which occurred when encoding and decoding files
+            containing a single symbol.
+          - Modified canonical version to dynamically allocate the array used
+            to store the canonical list of codes.
+          - Use $(OS) environment variable to determine operating system in
+            Makefile.
+11/20/03  - Correctly handle symbol codes that are over 16 bits long.  These
+            changes can handle codes up to 255 bits long.
+12/02/03  - Incorporate latest version of bitop256 library
+
+TODO
+----
+- Combine common huffman and chuffman code into a single library.
+- Provide a command line option to change symbol size.
+- Implement bijective scheme for ending file on byte boundary without
+  counting the number of encoded symbols encoded (http://bijective.dogma.net/).
+
+AUTHOR
+------
+Michael Dipperstein (mdipper@cs.ucsb.edu)
