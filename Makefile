@@ -1,8 +1,12 @@
 ############################################################################
 # Makefile for huffman encode/decode programs
 #
-#   $Id: Makefile,v 1.6 2004/06/15 13:34:52 michael Exp $
+#   $Id: Makefile,v 1.7 2005/05/23 03:18:04 michael Exp $
 #   $Log: Makefile,v $
+#   Revision 1.7  2005/05/23 03:18:04  michael
+#   Moved internal routines and definitions common to both canonical and
+#   traditional Huffman coding so that they are only declared once.
+#
 #   Revision 1.6  2004/06/15 13:34:52  michael
 #   Build sample with canonical and traditional huffman codes.
 #
@@ -18,8 +22,11 @@
 
 CC = gcc
 LD = gcc
-CFLAGS = -O2 -Wall -ansi -c
-LDFLAGS = -O2 -o
+CFLAGS = -O3 -Wall -ansi -pedantic -c
+LDFLAGS = -O3 -o
+
+# libraries
+LIBS = -L. -lhuffman -lgetopt
 
 # Treat NT and non-NT windows the same
 ifeq ($(OS),Windows_NT)
@@ -36,19 +43,24 @@ endif
 
 all:		sample$(EXE)
 
-sample$(EXE):	sample.o huffman.o chuffman.o getopt.o bitfile.o bitarray.o
-		$(LD) $^ $(LDFLAGS) $@
+sample$(EXE):	sample.o libhuffman.a libgetopt.a
+		$(LD) $^ $(LIBS) $(LDFLAGS) $@
 
 sample.o:	sample.c huffman.h getopt.h
 		$(CC) $(CFLAGS) $<
 
-huffman.o:	huffman.c bitarray.h bitfile.h
+libhuffman.a:	huffman.o chuffman.o huflocal.o bitarray.o bitfile.o
+		ar crv libhuffman.a huffman.o chuffman.o huflocal.o\
+		bitarray.o bitfile.o
+		ranlib libhuffman.a
+
+huffman.o:	huffman.c huflocal.h bitarray.h bitfile.h
 		$(CC) $(CFLAGS) $<
 
-chuffman.o:	chuffman.c bitarray.h bitfile.h
+chuffman.o:	chuffman.c huflocal.h bitarray.h bitfile.h
 		$(CC) $(CFLAGS) $<
 
-getopt.o:	getopt.c getopt.h
+huflocal.o:	huflocal.c huflocal.h
 		$(CC) $(CFLAGS) $<
 
 bitarray.o:	bitarray.c bitarray.h
@@ -57,6 +69,14 @@ bitarray.o:	bitarray.c bitarray.h
 bitfile.o:	bitfile.c bitfile.h
 		$(CC) $(CFLAGS) $<
 
+libgetopt.a:    getopt.o
+		ar crv libgetopt.a getopt.o
+		ranlib libgetopt.a
+
+getopt.o:	getopt.c getopt.h
+		$(CC) $(CFLAGS) $<
+
 clean:
 		$(DEL) *.o
+		$(DEL) *.a
 		$(DEL) sample$(EXE)

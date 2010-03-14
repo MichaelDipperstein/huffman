@@ -17,8 +17,12 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: huffman.c,v 1.7 2004/06/15 13:37:29 michael Exp $
+*   $Id: huffman.c,v 1.8 2005/05/23 03:18:04 michael Exp $
 *   $Log: huffman.c,v $
+*   Revision 1.8  2005/05/23 03:18:04  michael
+*   Moved internal routines and definitions common to both canonical and
+*   traditional Huffman coding so that they are only declared once.
+*
 *   Revision 1.7  2004/06/15 13:37:29  michael
 *   Change function names and make static functions to allow linkage with chuffman.
 *
@@ -37,7 +41,7 @@
 ****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2002 by Michael Dipperstein (mdipper@cs.ucsb.edu)
+* Copyright (C) 2002 by Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This library is free software; you can redistribute it and/or
 * modify it under the terms of the GNU Lesser General Public
@@ -60,42 +64,13 @@
 ***************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
+#include "huflocal.h"
 #include "bitarray.h"
 #include "bitfile.h"
 
 /***************************************************************************
 *                            TYPE DEFINITIONS
 ***************************************************************************/
-/* use preprocessor to verify type lengths */
-#if (UCHAR_MAX != 0xFF)
-#error This program expects unsigned char to be 1 byte
-#endif
-
-#if (UINT_MAX != 0xFFFFFFFF)
-#error This program expects unsigned int to be 4 bytes
-#endif
-
-/* system dependent types */
-typedef unsigned char byte_t;       /* unsigned 8 bit */
-typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
-
-typedef struct huffman_node_t
-{
-    int value;          /* character(s) represented by this entry */
-    count_t count;      /* number of occurrences of value (probability) */
-
-    char ignore;        /* TRUE -> already handled or no need to handle */
-    int level;          /* depth in tree (root is 0) */
-
-    /***********************************************************************
-    *  pointer to children and parent.
-    *  NOTE: parent is only useful if non-recursive methods are used to
-    *        search the huffman tree.
-    ***********************************************************************/
-    struct huffman_node_t *left, *right, *parent;
-} huffman_node_t;
-
 typedef struct code_list_t
 {
     byte_t codeLen;     /* number of bits used in code (1 - 255) */
@@ -105,36 +80,19 @@ typedef struct code_list_t
 /***************************************************************************
 *                                CONSTANTS
 ***************************************************************************/
-#define FALSE   0
-#define TRUE    1
-#define NONE    -1
-
-#define COUNT_T_MAX     UINT_MAX    /* based on count_t being unsigned int */
-
-#define COMPOSITE_NODE      -1      /* node represents multiple characters */
-#define NUM_CHARS           257     /* 256 bytes + EOF */
-#define EOF_CHAR    (NUM_CHARS - 1) /* index used for EOF */
 
 /***************************************************************************
 *                                 MACROS
 ***************************************************************************/
-#define max(a, b) ((a)>(b)?(a):(b))
 
 /***************************************************************************
 *                            GLOBAL VARIABLES
 ***************************************************************************/
-huffman_node_t *huffmanArray[NUM_CHARS];        /* array of all leaves */
 
 /***************************************************************************
 *                               PROTOTYPES
 ***************************************************************************/
-
-/* create/destroy tree */
-static huffman_node_t *GenerateTreeFromFile(FILE *inFile);
-static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
-static huffman_node_t *AllocHuffmanNode(int value);
-static void FreeHuffmanTree(huffman_node_t *ht);
-
+/* creates look up table from tree */
 static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList);
 
 /* reading/writing tree to file */
@@ -472,246 +430,6 @@ int HuffmanShowTree(char *inFile, char *outFile)
     FreeHuffmanTree(huffmanTree);     /* free allocated memory */
 
     return TRUE;
-}
-
-/****************************************************************************
-*   Function   : AllocHuffmanNode
-*   Description: This routine allocates and initializes memory for a node
-*                (tree entry for a single character) in a Huffman tree.
-*   Parameters : value - character value represented by this node
-*   Effects    : Memory for a huffman_node_t is allocated from the heap
-*   Returned   : Pointer to allocated node.  NULL on failure to allocate.
-****************************************************************************/
-static huffman_node_t *AllocHuffmanNode(int value)
-{
-    huffman_node_t *ht;
-
-    ht = (huffman_node_t *)(malloc(sizeof(huffman_node_t)));
-
-    if (ht != NULL)
-    {
-        ht->value = value;
-        ht->ignore = TRUE;      /* will be FALSE if one is found */
-
-        /* at this point, the node is not part of a tree */
-        ht->count = 0;
-        ht->level = 0;
-        ht->left = NULL;
-        ht->right = NULL;
-        ht->parent = NULL;
-    }
-    else
-    {
-        perror("Allocate Node");
-    }
-
-    return ht;
-}
-
-/****************************************************************************
-*   Function   : AllocHuffmanCompositeNode
-*   Description: This routine allocates and initializes memory for a
-*                composite node (tree entry for multiple characters) in a
-*                Huffman tree.  The number of occurrences for a composite is
-*                the sum of occurrences of its children.
-*   Parameters : left - left child in tree
-*                right - right child in tree
-*   Effects    : Memory for a huffman_node_t is allocated from the heap
-*   Returned   : Pointer to allocated node
-****************************************************************************/
-huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
-    huffman_node_t *right)
-{
-    huffman_node_t *ht;
-
-    ht = (huffman_node_t *)(malloc(sizeof(huffman_node_t)));
-
-    if (ht != NULL)
-    {
-        ht->value = COMPOSITE_NODE;     /* represents multiple chars */
-        ht->ignore = FALSE;
-        ht->count = left->count + right->count;     /* sum of children */
-        ht->level = max(left->level, right->level) + 1;
-
-        /* attach children */
-        ht->left = left;
-        ht->left->parent = ht;
-        ht->right = right;
-        ht->right->parent = ht;
-        ht->parent = NULL;
-    }
-    else
-    {
-        perror("Allocate Composite");
-        return NULL;
-    }
-
-    return ht;
-}
-
-/****************************************************************************
-*   Function   : FreeHuffmanTree
-*   Description: This is a recursive routine for freeing the memory
-*                allocated for a node and all of its descendants.
-*   Parameters : ht - structure to delete along with its children.
-*   Effects    : Memory for a huffman_node_t and its children is returned to
-*                the heap.
-*   Returned   : None
-****************************************************************************/
-static void FreeHuffmanTree(huffman_node_t *ht)
-{
-    if (ht->left != NULL)
-    {
-        FreeHuffmanTree(ht->left);
-    }
-
-    if (ht->right != NULL)
-    {
-        FreeHuffmanTree(ht->right);
-    }
-
-    free(ht);
-}
-
-/****************************************************************************
-*   Function   : GenerateTreeFromFile
-*   Description: This routine creates a huffman tree optimized for encoding
-*                the file passed as a parameter.
-*   Parameters : inFile - Name of file to create tree for
-*   Effects    : Huffman tree is built for file.
-*   Returned   : Pointer to resulting tree.  NULL on failure.
-****************************************************************************/
-static huffman_node_t *GenerateTreeFromFile(FILE *inFile)
-{
-    huffman_node_t *huffmanTree;              /* root of huffman tree */
-    int c;
-
-    /* allocate array of leaves for all possible characters */
-    for (c = 0; c < NUM_CHARS; c++)
-    {
-        if ((huffmanArray[c] = AllocHuffmanNode(c)) == NULL)
-        {
-            /* allocation failed clear existing allocations */
-            for (c--; c >= 0; c--)
-            {
-                free(huffmanArray[c]);
-            }
-            return NULL;
-        }
-    }
-
-    /* assume that there will be exactly 1 EOF */
-    huffmanArray[EOF_CHAR]->count = 1;
-    huffmanArray[EOF_CHAR]->ignore = FALSE;
-
-    /* count occurrence of each character */
-    while ((c = fgetc(inFile)) != EOF)
-    {
-        if (huffmanArray[c]->count < COUNT_T_MAX)
-        {
-            /* increment count for character and include in tree */
-            huffmanArray[c]->count++;
-            huffmanArray[c]->ignore = FALSE;
-        }
-        else
-        {
-            fprintf(stderr,
-                "Input file contains too many 0x%02X to count.\n", c);
-            return NULL;
-        }
-    }
-
-    /* put array of leaves into a huffman tree */
-    huffmanTree = BuildHuffmanTree(huffmanArray, NUM_CHARS);
-
-    return huffmanTree;
-}
-
-/****************************************************************************
-*   Function   : FindMinimumCount
-*   Description: This function searches an array of HUFFMAN_STRCUT to find
-*                the active (ignore == FALSE) element with the smallest
-*                frequency count.  In order to keep the tree shallow, if two
-*                nodes have the same count, the node with the lower level
-*                selected.
-*   Parameters : ht - pointer to array of structures to be searched
-*                elements - number of elements in the array
-*   Effects    : None
-*   Returned   : Index of the active element with the smallest count.
-*                NONE is returned if no minimum is found.
-****************************************************************************/
-static int FindMinimumCount(huffman_node_t **ht, int elements)
-{
-    int i;                          /* array index */
-    int currentIndex = NONE;        /* index with lowest count seen so far */
-    int currentCount = INT_MAX;     /* lowest count seen so far */
-    int currentLevel = INT_MAX;     /* level of lowest count seen so far */
-
-    /* sequentially search array */
-    for (i = 0; i < elements; i++)
-    {
-        /* check for lowest count (or equally as low, but not as deep) */
-        if ((ht[i] != NULL) && (!ht[i]->ignore) &&
-            (ht[i]->count < currentCount ||
-                (ht[i]->count == currentCount && ht[i]->level < currentLevel)))
-        {
-            currentIndex = i;
-            currentCount = ht[i]->count;
-            currentLevel = ht[i]->level;
-        }
-    }
-
-    return currentIndex;
-}
-
-/****************************************************************************
-*   Function   : BuildHuffmanTree
-*   Description: This function builds a huffman tree from an array of
-*                HUFFMAN_STRCUT.
-*   Parameters : ht - pointer to array of structures to be searched
-*                elements - number of elements in the array
-*   Effects    : Array of huffman_node_t is built into a huffman tree.
-*   Returned   : Pointer to the root of a Huffman Tree
-****************************************************************************/
-static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
-{
-    int min1, min2;     /* two nodes with the lowest count */
-
-    /* keep looking until no more nodes can be found */
-    for (;;)
-    {
-        /* find node with lowest count */
-        min1 = FindMinimumCount(ht, elements);
-
-        if (min1 == NONE)
-        {
-            /* no more nodes to combine */
-            break;
-        }
-
-        ht[min1]->ignore = TRUE;    /* remove from consideration */
-
-        /* find node with second lowest count */
-        min2 = FindMinimumCount(ht, elements);
-
-        if (min2 == NONE)
-        {
-            /* no more nodes to combine */
-            break;
-        }
-
-        ht[min2]->ignore = TRUE;    /* remove from consideration */
-
-        /* combine nodes into a tree */
-        if ((ht[min1] = AllocHuffmanCompositeNode(ht[min1], ht[min2])) == NULL)
-        {
-            return NULL;
-        }
-
-        ht[min2] = NULL;
-    }
-
-    return ht[min1];
 }
 
 /****************************************************************************

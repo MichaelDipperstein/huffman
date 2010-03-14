@@ -5,6 +5,7 @@ coding and decoding.  This implementation is not intended to be the best,
 fastest, smallest, or any other performance related adjective.
 
 More information on Huffman encoding may be found at:
+http://michael.dipperstein.com/huffman
 http://datacompression.info/Huffman.shtml
 
 FILES
@@ -19,6 +20,11 @@ COPYING         - Rules for copying and distributing LGPL software
 getopt.c        - LGPL version of getopt source from GNU project
 getopt.h        - LGPL version of getopt headers from GNU project
 huffman.c       - Huffman encoding and decoding routines
+huffman.h       - Header file used by code calling library functions 
+huflocal.h      - Header file with internal library definitions common to both
+                  canonical and conventional techniques
+huflocal.c      - File with internal library functions common to both canonical
+                  and conventional techniques
 LICENSE         - GNU Lesser General Public License
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
 README          - this file
@@ -83,6 +89,9 @@ HISTORY
             they may be called from the same program.
           - Include use of canonical and traditional Huffman codes in
             sample program.
+05/22/05  - Provides single declaration for items common canonical and
+            traditional encoding source
+          - Makefile builds libraries for easier LGPL compliance.
 
 TODO
 ----
@@ -92,4 +101,4 @@ TODO
 
 AUTHOR
 ------
-Michael Dipperstein (mdipper@cs.ucsb.edu)
+Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
