@@ -9,9 +9,9 @@ http://datacompression.info/Huffman.shtml
 
 FILES
 -----
-bitop256.c      - Library to allow array of 32 unsigned characters to be
-                  treated as an array of 256 bits.
-bitop256.h      - Header for bitop256 library.
+bitarray.c      - Library providing logical operations on arbitrary length
+                  arrays of bits.
+bitarray.h      - Header for bit array library.
 bitfile.c       - Library to allow bitwise reading and writing of files.
 bitfile.h       - Header for bitfile library.
 COPYING         - Rules for copying and distributing LGPL software
@@ -71,6 +71,7 @@ HISTORY
             changes can handle codes up to 255 bits long.
 01/05/04  - Encode EOF along with other symbols
 01/12/04  - Use bit stream file library
+02/02/04  - Use bit array library
 
 TODO
 ----

@@ -1,8 +1,11 @@
 ############################################################################
 # Makefile for huffman encode/decode programs
 #
-#   $Id: Makefile,v 1.3 2004/01/13 15:35:47 michael Exp $
+#   $Id: Makefile,v 1.4 2004/02/04 15:31:14 michael Exp $
 #   $Log: Makefile,v $
+#   Revision 1.4  2004/02/04 15:31:14  michael
+#   replace bitop with bitarry library.
+#
 #   Revision 1.3  2004/01/13 15:35:47  michael
 #   Add CVS Log
 #
@@ -29,22 +32,22 @@ endif
 
 all:		huffman$(EXE) chuffman$(EXE)
 
-huffman$(EXE):	huffman.o getopt.o bitop256.o bitfile.o
+huffman$(EXE):	huffman.o getopt.o bitarray.o bitfile.o
 		$(LD) $^ $(LDFLAGS) $@
 
-huffman.o:	huffman.c bitop256.h bitfile.h getopt.h
+huffman.o:	huffman.c bitarray.h bitfile.h getopt.h
 		$(CC) $(CFLAGS) $<
 
-chuffman$(EXE):	chuffman.o getopt.o bitop256.o bitfile.o
+chuffman$(EXE):	chuffman.o getopt.o bitarray.o bitfile.o
 		$(LD) $^ $(LDFLAGS) $@
 
-chuffman.o:	chuffman.c bitop256.h bitfile.h getopt.h
+chuffman.o:	chuffman.c bitarray.h bitfile.h getopt.h
 		$(CC) $(CFLAGS) $<
 
 getopt.o:	getopt.c getopt.h
 		$(CC) $(CFLAGS) $<
 
-bitop256.o:	bitop256.c bitop256.h
+bitarray.o:	bitarray.c bitarray.h
 		$(CC) $(CFLAGS) $<
 
 bitfile.o:	bitfile.c bitfile.h

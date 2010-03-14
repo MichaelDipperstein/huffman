@@ -17,8 +17,11 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: huffman.c,v 1.4 2004/01/13 15:49:45 michael Exp $
+*   $Id: huffman.c,v 1.5 2004/02/04 15:30:44 michael Exp $
 *   $Log: huffman.c,v $
+*   Revision 1.5  2004/02/04 15:30:44  michael
+*   replace bitop with bitarry library.
+*
 *   Revision 1.4  2004/01/13 15:49:45  michael
 *   Beautify header
 *
@@ -56,7 +59,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
-#include "bitop256.h"
+#include "bitarray.h"
 #include "bitfile.h"
 #include "getopt.h"
 
@@ -82,7 +85,6 @@
 
 /* system dependent types */
 typedef unsigned char byte_t;       /* unsigned 8 bit */
-typedef unsigned char code_t;       /* unsigned 8 bit for character codes */
 typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
 
 typedef struct huffman_node_t
@@ -104,7 +106,7 @@ typedef struct huffman_node_t
 typedef struct code_list_t
 {
     byte_t codeLen;     /* number of bits used in code (1 - 255) */
-    code_t code[32];    /* code used for symbol (left justified) */
+    bit_array_t *code;  /* code used for symbol (left justified) */
 } code_list_t;
 
 typedef enum
@@ -151,7 +153,7 @@ void PrintCode(huffman_node_t *ht, char *outFile);
 
 void EncodeFile(huffman_node_t *ht, char *inFile, char *outFile);
 void DecodeFile(huffman_node_t **ht, char *inFile, char *outFile);
-void MakeCodeList(huffman_node_t *ht, code_list_t *cl);
+int MakeCodeList(huffman_node_t *ht, code_list_t *codeList);
 
 /* reading/writing tree to file */
 void WriteHeader(huffman_node_t *ht, bit_file_t *bfp);
@@ -690,18 +692,40 @@ void EncodeFile(huffman_node_t *ht, char *inFile, char *outFile)
         }
     }
 
-    WriteHeader(ht, bfpOut);        /* write header for rebuilding of tree */
-    MakeCodeList(ht, codeList);     /* convert code to easy to use list */
-
-    /* read character and write it to encoded file */
-    while((c = fgetc(fpIn)) != EOF)
+    /* initialize the code list */
+    for (c = 0; c < NUM_CHARS; c++)
     {
-        BitFilePutBits(bfpOut, codeList[c].code, codeList[c].codeLen);
+        codeList[c].code = NULL;
+        codeList[c].codeLen = 0;
     }
 
-    /* now write EOF */
-    BitFilePutBits(bfpOut, codeList[EOF_CHAR].code,
-        codeList[EOF_CHAR].codeLen);
+    if (MakeCodeList(ht, codeList))
+    {
+        /* converted code to easy to use list */
+        WriteHeader(ht, bfpOut);        /* write header for rebuilding of tree */
+
+        /* read character and write it to encoded file */
+        while((c = fgetc(fpIn)) != EOF)
+        {
+            BitFilePutBits(bfpOut,
+                BitArrayGetBits(codeList[c].code),
+                codeList[c].codeLen);
+        }
+
+        /* now write EOF */
+        BitFilePutBits(bfpOut,
+            BitArrayGetBits(codeList[EOF_CHAR].code),
+            codeList[EOF_CHAR].codeLen);
+    }
+
+    /* free the code list */
+    for (c = 0; c < NUM_CHARS; c++)
+    {
+        if (codeList[c].code != NULL)
+        {
+            BitArrayDestroy(codeList[c].code);
+        }
+    }
 
     fclose(fpIn);
     BitFileClose(bfpOut);
@@ -715,23 +739,29 @@ void EncodeFile(huffman_node_t *ht, char *inFile, char *outFile)
 *                in search of the code for any symbol, the code maybe found
 *                by accessing cl[symbol].code.
 *   Parameters : ht - pointer to root of huffman tree
-*                cl - code list to populate.
+*                codeList - code list to populate.
 *   Effects    : Code values are filled in for symbols in a code list.
-*   Returned   : None
+*   Returned   : TRUE for success, FALSE for failure
 ****************************************************************************/
-void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
+int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
 {
-    code_t code[32];
+    bit_array_t *code;
     byte_t depth = 0;
 
-    ClearAll256(code);
+    if((code = BitArrayCreate(256)) == NULL)
+    {
+        perror("Unable to allocate bit array");
+        return (FALSE);
+    }
+
+    BitArrayClearAll(code);
 
     for(;;)
     {
         /* follow this branch all the way left */
         while (ht->left != NULL)
         {
-            LeftShift256(code, 1);
+            BitArrayShiftLeft(code, 1);
             ht = ht->left;
             depth++;
         }
@@ -739,11 +769,17 @@ void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
         if (ht->value != COMPOSITE_NODE)
         {
             /* enter results in list */
-            cl[ht->value].codeLen = depth;
-            Copy256(cl[ht->value].code, code);
+            codeList[ht->value].codeLen = depth;
+            codeList[ht->value].code = BitArrayDuplicate(code);
+            if (codeList[ht->value].code == NULL)
+            {
+                perror("Unable to allocate bit array");
+                BitArrayDestroy(code);
+                return (FALSE);
+            }
 
             /* now left justify code */
-            LeftShift256(cl[ht->value].code, 256 - depth);
+            BitArrayShiftLeft(codeList[ht->value].code, 256 - depth);
         }
 
         while (ht->parent != NULL)
@@ -751,7 +787,7 @@ void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
             if (ht != ht->parent->right)
             {
                 /* try the parent's right */
-                code[31] |= 0x01;
+                BitArraySetBit(code, 255);
                 ht = ht->parent->right;
                 break;
             }
@@ -759,7 +795,7 @@ void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
             {
                 /* parent's right tried, go up one level yet */
                 depth--;
-                RightShift256(code, 1);
+                BitArrayShiftRight(code, 1);
                 ht = ht->parent;
             }
         }
@@ -770,6 +806,9 @@ void MakeCodeList(huffman_node_t *ht, code_list_t *cl)
             break;
         }
     }
+
+    BitArrayDestroy(code);
+    return (TRUE);
 }
 
 /****************************************************************************
