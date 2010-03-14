@@ -10,8 +10,11 @@
 ****************************************************************************
 *   UPDATES
 *
-*   $Id: huffman.h,v 1.1 2004/02/26 04:58:22 michael Exp $
+*   $Id: huffman.h,v 1.2 2004/06/15 13:37:59 michael Exp $
 *   $Log: huffman.h,v $
+*   Revision 1.2  2004/06/15 13:37:59  michael
+*   Incorporate changes in chuffman.c.
+*
 *   Revision 1.1  2004/02/26 04:58:22  michael
 *   Initial revision.  Headers for encode/decode functions.
 *
@@ -43,8 +46,15 @@
 /***************************************************************************
 *                               PROTOTYPES
 ***************************************************************************/
+
+/* traditional codes */
 int HuffmanShowTree(char *inFile, char *outFile);       /* dump codes */
 int HuffmanEncodeFile(char *inFile, char *outFile);     /* encode file */
 int HuffmanDecodeFile(char *inFile, char *outFile);     /* decode file */
+
+/* canonical code */
+int CHuffmanShowTree(char *inFile, char *outFile);       /* dump codes */
+int CHuffmanEncodeFile(char *inFile, char *outFile);     /* encode file */
+int CHuffmanDecodeFile(char *inFile, char *outFile);     /* decode file */
 
 #endif /* _HUFFMAN_H_ */

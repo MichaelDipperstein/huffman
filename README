@@ -27,21 +27,22 @@ sample.c        - Demonstration of how to use Huffman library functions
 BUILDING
 --------
 To build these files with GNU make and gcc, simply enter "make" from the
-command line.  By default the Makefile will build a canonical Huffman code
-sample.  Edit the variable HUFFOBJ to build traditional Huffman code (see
-comments in Makefile).
+command line.
 
 USAGE
 -----
 Usage: sample <options>
 
 options:
+  -C : Encode/Decode using a canonical code.
   -c : Encode input file to output file.
   -d : Decode input file to output file.
   -t : Generate code tree for input file to output file.
   -i <filename> : Name of input file.
   -o <filename> : Name of output file.
   -h|?  : Print out command line options.
+
+-C      Uses a canonical Huffman code (chuffman.c).
 
 -c      Generates a Huffman tree for the specified input file (see -i) and
         compresses a file using the tree to the specified output file (see -o).
@@ -77,10 +78,14 @@ HISTORY
             and adding a header file with prototypes for encode/decode
             functions.
           - Add sample usage of functions.
+06/14/04  - Use latest version of bitfile.c.
+          - Make routines local to huffman.c and chuffman.c static so that
+            they may be called from the same program.
+          - Include use of canonical and traditional Huffman codes in
+            sample program.
 
 TODO
 ----
-- Combine common huffman and chuffman code into a single library.
 - Provide a command line option to change symbol size.
 - Implement bijective scheme for ending file on byte boundary without
   counting the number of encoded symbols encoded (http://bijective.dogma.net/).

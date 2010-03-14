@@ -16,8 +16,11 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: chuffman.c,v 1.6 2004/02/26 04:55:36 michael Exp $
+*   $Id: chuffman.c,v 1.7 2004/06/15 13:37:10 michael Exp $
 *   $Log: chuffman.c,v $
+*   Revision 1.7  2004/06/15 13:37:10  michael
+*   Change function names and make static functions to allow linkage with huffman.
+*
 *   Revision 1.6  2004/02/26 04:55:36  michael
 *   Remove main(), allowing code to be generate linkable object file.
 *
@@ -130,26 +133,26 @@ canonical_list_t canonicalList[NUM_CHARS];      /* list of canonical codes */
 ***************************************************************************/
 
 /* create/destroy tree */
-huffman_node_t *GenerateTreeFromFile(FILE *inFile);
-huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
-huffman_node_t *AllocHuffmanNode(int value);
-void FreeHuffmanTree(huffman_node_t *ht);
+static huffman_node_t *GenerateTreeFromFile(FILE *inFile);
+static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
+static huffman_node_t *AllocHuffmanNode(int value);
+static void FreeHuffmanTree(huffman_node_t *ht);
 
 /* creating canonical codes */
-int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl);
-int AssignCanonicalCodes(canonical_list_t *cl);
-int CompareByCodeLen(const void *item1, const void *item2);
+static int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl);
+static int AssignCanonicalCodes(canonical_list_t *cl);
+static int CompareByCodeLen(const void *item1, const void *item2);
 
 /* reading/writing code to file */
-void WriteHeader(canonical_list_t *cl, bit_file_t *bfp);
-int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
+static void WriteHeader(canonical_list_t *cl, bit_file_t *bfp);
+static int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 
 /***************************************************************************
 *                                FUNCTIONS
 ***************************************************************************/
 
 /****************************************************************************
-*   Function   : HuffmanEncodeFile
+*   Function   : CHuffmanEncodeFile
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an encoded version of that file.
 *   Parameters : inFile - Name of file to encode
@@ -157,7 +160,7 @@ int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 *   Effects    : File is Huffman encoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int HuffmanEncodeFile(char *inFile, char *outFile)
+int CHuffmanEncodeFile(char *inFile, char *outFile)
 {
     FILE *fpIn;
     bit_file_t *bfpOut;
@@ -232,7 +235,7 @@ int HuffmanEncodeFile(char *inFile, char *outFile)
 }
 
 /****************************************************************************
-*   Function   : HuffmanDecodeFile
+*   Function   : CHuffmanDecodeFile
 *   Description: This routine reads a Huffman coded file and writes out a
 *                decoded version of that file.
 *   Parameters : inFile - Name of file to decode
@@ -240,7 +243,7 @@ int HuffmanEncodeFile(char *inFile, char *outFile)
 *   Effects    : Huffman encoded file is decoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int HuffmanDecodeFile(char *inFile, char *outFile)
+int CHuffmanDecodeFile(char *inFile, char *outFile)
 {
     bit_file_t *bfpIn;
     FILE *fpOut;
@@ -386,7 +389,7 @@ int HuffmanDecodeFile(char *inFile, char *outFile)
 }
 
 /****************************************************************************
-*   Function   : HuffmanShowTree
+*   Function   : CHuffmanShowTree
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an ASCII representation of the code
 *                represented by the tree.
@@ -395,7 +398,7 @@ int HuffmanDecodeFile(char *inFile, char *outFile)
 *   Effects    : Huffman tree is written out to a file
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int HuffmanShowTree(char *inFile, char *outFile)
+int CHuffmanShowTree(char *inFile, char *outFile)
 {
     FILE *fpIn, *fpOut;
     huffman_node_t *huffmanTree;        /* root of huffman tree */
@@ -494,7 +497,7 @@ int HuffmanShowTree(char *inFile, char *outFile)
 *   Effects    : Memory for a huffman_node_t is allocated from the heap
 *   Returned   : Pointer to allocated node.  NULL on failure to allocate.
 ****************************************************************************/
-huffman_node_t *AllocHuffmanNode(int value)
+static huffman_node_t *AllocHuffmanNode(int value)
 {
     huffman_node_t *ht;
 
@@ -531,7 +534,7 @@ huffman_node_t *AllocHuffmanNode(int value)
 *   Effects    : Memory for a huffman_node_t is allocated from the heap
 *   Returned   : Pointer to allocated node
 ****************************************************************************/
-huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
+static huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
     huffman_node_t *right)
 {
     huffman_node_t *ht;
@@ -570,7 +573,7 @@ huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
 *                the heap.
 *   Returned   : None
 ****************************************************************************/
-void FreeHuffmanTree(huffman_node_t *ht)
+static void FreeHuffmanTree(huffman_node_t *ht)
 {
     if (ht->left != NULL)
     {
@@ -593,7 +596,7 @@ void FreeHuffmanTree(huffman_node_t *ht)
 *   Effects    : Huffman tree is built for file.
 *   Returned   : Pointer to resulting tree.  NULL on failure.
 ****************************************************************************/
-huffman_node_t *GenerateTreeFromFile(FILE *inFile)
+static huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 {
     huffman_node_t *huffmanTree;              /* root of huffman tree */
     int c;
@@ -652,7 +655,7 @@ huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 *   Returned   : Index of the active element with the smallest count.
 *                NONE is returned if no minimum is found.
 ****************************************************************************/
-int FindMinimumCount(huffman_node_t **ht, int elements)
+static int FindMinimumCount(huffman_node_t **ht, int elements)
 {
     int i;                          /* array index */
     int currentIndex = NONE;        /* index with lowest count seen so far */
@@ -685,7 +688,7 @@ int FindMinimumCount(huffman_node_t **ht, int elements)
 *   Effects    : Array of huffman_node_t is built into a huffman tree.
 *   Returned   : Pointer to the root of a Huffman Tree
 ****************************************************************************/
-huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
+static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
 {
     int min1, min2;     /* two nodes with the lowest count */
 
@@ -738,7 +741,7 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
 *                -1 if item1 < item 2
 *                0 if something went wrong (means item1 == item2)
 ****************************************************************************/
-int CompareByCodeLen(const void *item1, const void *item2)
+static int CompareByCodeLen(const void *item1, const void *item2)
 {
     if (((canonical_list_t *)item1)->codeLen >
         ((canonical_list_t *)item2)->codeLen)
@@ -779,7 +782,7 @@ int CompareByCodeLen(const void *item1, const void *item2)
 *   Returned   : 1 if item1 > item2
 *                -1 if item1 < item 2
 ****************************************************************************/
-int CompareBySymbolValue(const void *item1, const void *item2)
+static int CompareBySymbolValue(const void *item1, const void *item2)
 {
     if (((canonical_list_t *)item1)->value >
         ((canonical_list_t *)item2)->value)
@@ -802,7 +805,7 @@ int CompareBySymbolValue(const void *item1, const void *item2)
 *                of the charcter to be encode.
 *   Returned   : TRUE for success, FALSE for failure
 ****************************************************************************/
-int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl)
+static int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl)
 {
     int i;
     byte_t depth = 0;
@@ -884,7 +887,7 @@ int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl)
 *                of the code used to encode the symbol.
 *   Returned   : TRUE for success, FALSE for failure
 ****************************************************************************/
-int AssignCanonicalCodes(canonical_list_t *cl)
+static int AssignCanonicalCodes(canonical_list_t *cl)
 {
     int i;
     byte_t length;
@@ -941,7 +944,7 @@ int AssignCanonicalCodes(canonical_list_t *cl)
 *                output file.
 *   Returned   : None
 ****************************************************************************/
-void WriteHeader(canonical_list_t *cl, bit_file_t *bfp)
+static void WriteHeader(canonical_list_t *cl, bit_file_t *bfp)
 {
     int i;
 
@@ -964,7 +967,7 @@ void WriteHeader(canonical_list_t *cl, bit_file_t *bfp)
 *                Total number of symbols encoded is store in totalCount
 *   Returned   : TRUE on success, otherwise FALSE.
 ****************************************************************************/
-int ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
+static int ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
 {
     int c;
     int i;

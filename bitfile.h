@@ -16,12 +16,12 @@
 ****************************************************************************
 *   UPDATES
 *
-*   $Id: bitfile.h,v 1.2 2004/01/13 15:43:14 michael Exp $
+*   $Id: bitfile.h,v 1.2 2004/06/15 13:16:10 michael Exp $
 *   $Log: bitfile.h,v $
-*   Revision 1.2  2004/01/13 15:43:14  michael
-*   Beautify header
+*   Revision 1.2  2004/06/15 13:16:10  michael
+*   Use incomplete type to hide definition of bitfile structure
 *
-*   Revision 1.1  2004/01/13 05:57:49  michael
+*   Revision 1.1.1.1  2004/02/09 05:31:42  michael
 *   Initial release
 *
 *
@@ -65,13 +65,9 @@ typedef enum
     BF_NO_MODE
 } BF_MODES;
 
-typedef struct
-{
-    FILE *fp;                   /* file pointer used by stdio functions */
-    unsigned char bitBuffer;    /* bits waiting to be read/written */
-    unsigned char bitCount;     /* number of bits in bitBuffer */
-    BF_MODES mode;              /* open for read, write, or append */
-} bit_file_t;
+/* incomplete type to hide implementation */
+struct bit_file_t;
+typedef struct bit_file_t bit_file_t;
 
 /***************************************************************************
 *                               PROTOTYPES

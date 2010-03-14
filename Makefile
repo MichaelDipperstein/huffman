@@ -1,8 +1,11 @@
 ############################################################################
 # Makefile for huffman encode/decode programs
 #
-#   $Id: Makefile,v 1.5 2004/02/26 04:47:55 michael Exp $
+#   $Id: Makefile,v 1.6 2004/06/15 13:34:52 michael Exp $
 #   $Log: Makefile,v $
+#   Revision 1.6  2004/06/15 13:34:52  michael
+#   Build sample with canonical and traditional huffman codes.
+#
 #   Revision 1.5  2004/02/26 04:47:55  michael
 #   Compile to executable sample program, which links to either huffman or
 #   chuffman.
@@ -31,14 +34,9 @@ else	#assume Linux/Unix
 	DEL = rm
 endif
 
-# uncomment one of the lines below to choose between a traditional Huffman
-# code (huffman.o) and a canonical Huffman code (chuffman.o)
-# HUFFOBJ = huffman.o
-HUFFOBJ = chuffman.o
-
 all:		sample$(EXE)
 
-sample$(EXE):	sample.o $(HUFFOBJ) getopt.o bitfile.o bitarray.o
+sample$(EXE):	sample.o huffman.o chuffman.o getopt.o bitfile.o bitarray.o
 		$(LD) $^ $(LDFLAGS) $@
 
 sample.o:	sample.c huffman.h getopt.h

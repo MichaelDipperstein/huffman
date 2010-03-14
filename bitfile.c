@@ -15,13 +15,13 @@
 ****************************************************************************
 *   UPDATES
 *
-*   $Id: bitfile.c,v 1.2 2004/01/13 15:42:26 michael Exp $
+*   $Id: bitfile.c,v 1.2 2004/06/15 13:15:58 michael Exp $
 *   $Log: bitfile.c,v $
-*   Revision 1.2  2004/01/13 15:42:26  michael
-*   Beautify header
+*   Revision 1.2  2004/06/15 13:15:58  michael
+*   Use incomplete type to hide definition of bitfile structure
 *
-*   Revision 1.1  2004/01/13 05:58:06  michael
-*   Initial release.
+*   Revision 1.1.1.1  2004/02/09 05:31:42  michael
+*   Initial release
 *
 *
 ****************************************************************************
@@ -51,6 +51,18 @@
 #include <stdlib.h>
 #include <errno.h>
 #include "bitfile.h"
+
+/***************************************************************************
+*                            TYPE DEFINITIONS
+***************************************************************************/
+
+struct bit_file_t
+{
+    FILE *fp;                   /* file pointer used by stdio functions */
+    unsigned char bitBuffer;    /* bits waiting to be read/written */
+    unsigned char bitCount;     /* number of bits in bitBuffer */
+    BF_MODES mode;              /* open for read, write, or append */
+};
 
 /***************************************************************************
 *                                FUNCTIONS

@@ -10,8 +10,13 @@
 ****************************************************************************
 *   UPDATES
 *
-*   $Id: sample.c,v 1.1 2004/02/26 04:57:32 michael Exp $
+*   $Id: sample.c,v 1.2 2004/06/15 13:40:28 michael Exp $
 *   $Log: sample.c,v $
+*   Revision 1.2  2004/06/15 13:40:28  michael
+*   Add -C option for canonical.
+*   Handle both traditional and canonical codes.
+*   Correct file name in help.
+*
 *   Revision 1.1  2004/02/26 04:57:32  michael
 *   Initial revision.  Library usage sample.
 *
@@ -81,7 +86,7 @@ typedef enum
 ****************************************************************************/
 int main (int argc, char *argv[])
 {
-    int opt, status;
+    int opt, status, canonical;
     char *inFile, *outFile;
     MODES mode;
 
@@ -89,12 +94,17 @@ int main (int argc, char *argv[])
     inFile = NULL;
     outFile = NULL;
     mode = SHOW_TREE;
+    canonical = 0;
 
     /* parse command line */
-    while ((opt = getopt(argc, argv, "cdtni:o:h?")) != -1)
+    while ((opt = getopt(argc, argv, "Ccdtni:o:h?")) != -1)
     {
         switch(opt)
         {
+            case 'C':       /* use canonical code */
+                canonical = 1;
+                break;
+
             case 'c':       /* compression mode */
                 mode = COMPRESS;
                 break;
@@ -165,8 +175,9 @@ int main (int argc, char *argv[])
 
             case 'h':
             case '?':
-                printf("Usage: huffsample <options>\n\n");
+                printf("Usage: sample <options>\n\n");
                 printf("options:\n");
+                printf("  -C : Encode/Decode using a canonical code.\n");
                 printf("  -c : Encode input file to output file.\n");
                 printf("  -d : Decode input file to output file.\n");
                 printf("  -t : Generate code tree for input file to output file.\n");
@@ -182,7 +193,7 @@ int main (int argc, char *argv[])
     if (inFile == NULL)
     {
         fprintf(stderr, "Input file must be provided\n");
-        fprintf(stderr, "Enter \"huffsample -?\" for help.\n");
+        fprintf(stderr, "Enter \"sample -?\" for help.\n");
         exit (EXIT_FAILURE);
     }
 
@@ -190,15 +201,36 @@ int main (int argc, char *argv[])
     switch (mode)
     {
         case SHOW_TREE:
-            status = HuffmanShowTree(inFile, outFile);
+            if (canonical)
+            {
+                status = CHuffmanShowTree(inFile, outFile);
+            }
+            else
+            {
+                status = HuffmanShowTree(inFile, outFile);
+            }
             break;
 
         case COMPRESS:
-            status = HuffmanEncodeFile(inFile, outFile);
+            if (canonical)
+            {
+                status = CHuffmanEncodeFile(inFile, outFile);
+            }
+            else
+            {
+                status = HuffmanEncodeFile(inFile, outFile);
+            }
             break;
 
         case DECOMPRESS:
-            status = HuffmanDecodeFile(inFile, outFile);
+            if (canonical)
+            {
+                status = CHuffmanDecodeFile(inFile, outFile);
+            }
+            else
+            {
+                status = HuffmanDecodeFile(inFile, outFile);
+            }
             break;
 
         default:        /* error case */

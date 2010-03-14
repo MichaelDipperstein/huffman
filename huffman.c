@@ -17,8 +17,11 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: huffman.c,v 1.6 2004/02/26 04:55:04 michael Exp $
+*   $Id: huffman.c,v 1.7 2004/06/15 13:37:29 michael Exp $
 *   $Log: huffman.c,v $
+*   Revision 1.7  2004/06/15 13:37:29  michael
+*   Change function names and make static functions to allow linkage with chuffman.
+*
 *   Revision 1.6  2004/02/26 04:55:04  michael
 *   Remove main(), allowing code to be generate linkable object file.
 *
@@ -127,16 +130,16 @@ huffman_node_t *huffmanArray[NUM_CHARS];        /* array of all leaves */
 ***************************************************************************/
 
 /* create/destroy tree */
-huffman_node_t *GenerateTreeFromFile(FILE *inFile);
-huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
-huffman_node_t *AllocHuffmanNode(int value);
-void FreeHuffmanTree(huffman_node_t *ht);
+static huffman_node_t *GenerateTreeFromFile(FILE *inFile);
+static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
+static huffman_node_t *AllocHuffmanNode(int value);
+static void FreeHuffmanTree(huffman_node_t *ht);
 
-int MakeCodeList(huffman_node_t *ht, code_list_t *codeList);
+static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList);
 
 /* reading/writing tree to file */
-void WriteHeader(huffman_node_t *ht, bit_file_t *bfp);
-int ReadHeader(huffman_node_t **ht, bit_file_t *bfp);
+static void WriteHeader(huffman_node_t *ht, bit_file_t *bfp);
+static int ReadHeader(huffman_node_t **ht, bit_file_t *bfp);
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -479,7 +482,7 @@ int HuffmanShowTree(char *inFile, char *outFile)
 *   Effects    : Memory for a huffman_node_t is allocated from the heap
 *   Returned   : Pointer to allocated node.  NULL on failure to allocate.
 ****************************************************************************/
-huffman_node_t *AllocHuffmanNode(int value)
+static huffman_node_t *AllocHuffmanNode(int value)
 {
     huffman_node_t *ht;
 
@@ -555,7 +558,7 @@ huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
 *                the heap.
 *   Returned   : None
 ****************************************************************************/
-void FreeHuffmanTree(huffman_node_t *ht)
+static void FreeHuffmanTree(huffman_node_t *ht)
 {
     if (ht->left != NULL)
     {
@@ -578,7 +581,7 @@ void FreeHuffmanTree(huffman_node_t *ht)
 *   Effects    : Huffman tree is built for file.
 *   Returned   : Pointer to resulting tree.  NULL on failure.
 ****************************************************************************/
-huffman_node_t *GenerateTreeFromFile(FILE *inFile)
+static huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 {
     huffman_node_t *huffmanTree;              /* root of huffman tree */
     int c;
@@ -637,7 +640,7 @@ huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 *   Returned   : Index of the active element with the smallest count.
 *                NONE is returned if no minimum is found.
 ****************************************************************************/
-int FindMinimumCount(huffman_node_t **ht, int elements)
+static int FindMinimumCount(huffman_node_t **ht, int elements)
 {
     int i;                          /* array index */
     int currentIndex = NONE;        /* index with lowest count seen so far */
@@ -670,7 +673,7 @@ int FindMinimumCount(huffman_node_t **ht, int elements)
 *   Effects    : Array of huffman_node_t is built into a huffman tree.
 *   Returned   : Pointer to the root of a Huffman Tree
 ****************************************************************************/
-huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
+static huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
 {
     int min1, min2;     /* two nodes with the lowest count */
 
@@ -723,7 +726,7 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
 *   Effects    : Code values are filled in for symbols in a code list.
 *   Returned   : TRUE for success, FALSE for failure
 ****************************************************************************/
-int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
+static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
 {
     bit_array_t *code;
     byte_t depth = 0;
@@ -803,7 +806,7 @@ int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
 *   Effects    : Symbol values and symbol counts are written to a file.
 *   Returned   : None
 ****************************************************************************/
-void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
+static void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
 {
     int i;
 
@@ -863,7 +866,7 @@ void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
 *   Effects    : Frequency information is read into the node of ht
 *   Returned   : TRUE for success, otherwise FALSE
 ****************************************************************************/
-int ReadHeader(huffman_node_t **ht, bit_file_t *bfp)
+static int ReadHeader(huffman_node_t **ht, bit_file_t *bfp)
 {
     count_t count;
     int c;
