@@ -14,25 +14,26 @@ bitarray.c      - Library providing logical operations on arbitrary length
 bitarray.h      - Header for bit array library.
 bitfile.c       - Library to allow bitwise reading and writing of files.
 bitfile.h       - Header for bitfile library.
+chuffman.c      - Huffman encoding and decoding routines using canonical codes
 COPYING         - Rules for copying and distributing LGPL software
 getopt.c        - LGPL version of getopt source from GNU project
 getopt.h        - LGPL version of getopt headers from GNU project
 huffman.c       - Huffman encoding and decoding routines
-chuffman.c      - Huffman encoding and decoding routines using canonical codes
 LICENSE         - GNU Lesser General Public License
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
 README          - this file
+sample.c        - Demonstration of how to use Huffman library functions
 
 BUILDING
 --------
 To build these files with GNU make and gcc, simply enter "make" from the
-command line.
+command line.  By default the Makefile will build a canonical Huffman code
+sample.  Edit the variable HUFFOBJ to build traditional Huffman code (see
+comments in Makefile).
 
 USAGE
 -----
-Usage: huffman <options>
-       - or -
-       chuffman <options>
+Usage: sample <options>
 
 options:
   -c : Encode input file to output file.
@@ -72,6 +73,10 @@ HISTORY
 01/05/04  - Encode EOF along with other symbols
 01/12/04  - Use bit stream file library
 02/02/04  - Use bit array library
+02/25/04  - Make huffman.c and chuffman.c more library like by removing main
+            and adding a header file with prototypes for encode/decode
+            functions.
+          - Add sample usage of functions.
 
 TODO
 ----

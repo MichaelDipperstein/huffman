@@ -1,10 +1,11 @@
 ############################################################################
 # Makefile for huffman encode/decode programs
 #
-#   $Id: Makefile,v 1.4 2004/02/04 15:31:14 michael Exp $
+#   $Id: Makefile,v 1.5 2004/02/26 04:47:55 michael Exp $
 #   $Log: Makefile,v $
-#   Revision 1.4  2004/02/04 15:31:14  michael
-#   replace bitop with bitarry library.
+#   Revision 1.5  2004/02/26 04:47:55  michael
+#   Compile to executable sample program, which links to either huffman or
+#   chuffman.
 #
 #   Revision 1.3  2004/01/13 15:35:47  michael
 #   Add CVS Log
@@ -30,18 +31,23 @@ else	#assume Linux/Unix
 	DEL = rm
 endif
 
-all:		huffman$(EXE) chuffman$(EXE)
+# uncomment one of the lines below to choose between a traditional Huffman
+# code (huffman.o) and a canonical Huffman code (chuffman.o)
+# HUFFOBJ = huffman.o
+HUFFOBJ = chuffman.o
 
-huffman$(EXE):	huffman.o getopt.o bitarray.o bitfile.o
+all:		sample$(EXE)
+
+sample$(EXE):	sample.o $(HUFFOBJ) getopt.o bitfile.o bitarray.o
 		$(LD) $^ $(LDFLAGS) $@
 
-huffman.o:	huffman.c bitarray.h bitfile.h getopt.h
+sample.o:	sample.c huffman.h getopt.h
 		$(CC) $(CFLAGS) $<
 
-chuffman$(EXE):	chuffman.o getopt.o bitarray.o bitfile.o
-		$(LD) $^ $(LDFLAGS) $@
+huffman.o:	huffman.c bitarray.h bitfile.h
+		$(CC) $(CFLAGS) $<
 
-chuffman.o:	chuffman.c bitarray.h bitfile.h getopt.h
+chuffman.o:	chuffman.c bitarray.h bitfile.h
 		$(CC) $(CFLAGS) $<
 
 getopt.o:	getopt.c getopt.h
@@ -55,5 +61,4 @@ bitfile.o:	bitfile.c bitfile.h
 
 clean:
 		$(DEL) *.o
-		$(DEL) huffman$(EXE)
-		$(DEL) chuffman$(EXE)
+		$(DEL) sample$(EXE)

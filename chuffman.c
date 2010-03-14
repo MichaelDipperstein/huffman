@@ -16,10 +16,10 @@
 *               max).  With symbol counts being limited to 32 bits, 31
 *               bits will be the maximum code length.
 *
-*   $Id: chuffman.c,v 1.5 2004/02/04 15:30:59 michael Exp $
+*   $Id: chuffman.c,v 1.6 2004/02/26 04:55:36 michael Exp $
 *   $Log: chuffman.c,v $
-*   Revision 1.5  2004/02/04 15:30:59  michael
-*   replace bitop with bitarry library.
+*   Revision 1.6  2004/02/26 04:55:36  michael
+*   Remove main(), allowing code to be generate linkable object file.
 *
 *   Revision 1.4  2004/01/13 15:49:41  michael
 *   Beautify header
@@ -59,26 +59,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#include <string.h>
 #include "bitarray.h"
 #include "bitfile.h"
-#include "getopt.h"
 
 /***************************************************************************
 *                            TYPE DEFINITIONS
 ***************************************************************************/
-/* system dependent types */
-typedef unsigned char byte_t;       /* unsigned 8 bit */
-typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
-
 /* use preprocessor to verify type lengths */
 #if (UCHAR_MAX != 255)
 #error This program expects unsigned char to be 1 byte
 #endif
 
-#if (USHRT_MAX != 65535)
-#error This program expects unsigned short to be 2 bytes
+#if (UINT_MAX != 0xFFFFFFFF)
+#error This program expects unsigned int to be 4 bytes
 #endif
+
+/* system dependent types */
+typedef unsigned char byte_t;       /* unsigned 8 bit */
+typedef unsigned int count_t;       /* unsigned 32 bit for character counts */
 
 typedef struct huffman_node_t
 {
@@ -103,13 +101,6 @@ typedef struct canonical_list_t
     bit_array_t *code;  /* code used for symbol (left justified) */
 } canonical_list_t;
 
-typedef enum
-{
-    BUILD_TREE,
-    COMPRESS,
-    DECOMPRESS
-} MODES;
-
 /***************************************************************************
 *                                CONSTANTS
 ***************************************************************************/
@@ -123,267 +114,376 @@ typedef enum
 #define NUM_CHARS           257     /* 256 bytes + EOF */
 #define EOF_CHAR    (NUM_CHARS - 1) /* index used for EOF */
 
+/***************************************************************************
+*                                 MACROS
+***************************************************************************/
 #define max(a, b) ((a)>(b)?(a):(b))
 
 /***************************************************************************
 *                            GLOBAL VARIABLES
 ***************************************************************************/
 huffman_node_t *huffmanArray[NUM_CHARS];        /* array of all leaves */
+canonical_list_t canonicalList[NUM_CHARS];      /* list of canonical codes */
 
 /***************************************************************************
 *                               PROTOTYPES
 ***************************************************************************/
 
-/* allocation/deallocation routines */
+/* create/destroy tree */
+huffman_node_t *GenerateTreeFromFile(FILE *inFile);
+huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
 huffman_node_t *AllocHuffmanNode(int value);
-huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
-    huffman_node_t *right);
 void FreeHuffmanTree(huffman_node_t *ht);
 
-/* build and display tree */
-huffman_node_t *GenerateTreeFromFile(char *inFile);
-huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements);
-
+/* creating canonical codes */
 int BuildCanonicalCode(huffman_node_t *ht, canonical_list_t *cl);
 int AssignCanonicalCodes(canonical_list_t *cl);
+int CompareByCodeLen(const void *item1, const void *item2);
 
-void PrintCode(canonical_list_t *cl, char *outFile);
-
-void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile);
-void DecodeFile(canonical_list_t *cl, char *inFile, char *outFile);
-
-/* reading/writing tree to file */
+/* reading/writing code to file */
 void WriteHeader(canonical_list_t *cl, bit_file_t *bfp);
-void ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
+int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 
 /***************************************************************************
 *                                FUNCTIONS
 ***************************************************************************/
 
 /****************************************************************************
-*   Function   : Main
-*   Description: This is the main function for this program, it validates
-*                the command line input and, if valid, it will build a
-*                canonical Huffman code for the input file, huffman encode a
-*                file, or decode a huffman encoded file.
-*   Parameters : argc - number of parameters
-*                argv - parameter list
-*   Effects    : Builds a huffman tree for specified file and outputs
-*                resulting code to stdout.
-*   Returned   : EXIT_SUCCESS for success, otherwise EXIT_FAILURE.
+*   Function   : HuffmanEncodeFile
+*   Description: This routine genrates a huffman tree optimized for a file
+*                and writes out an encoded version of that file.
+*   Parameters : inFile - Name of file to encode
+*                outFile - Name of file to write a tree to
+*   Effects    : File is Huffman encoded
+*   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int main (int argc, char *argv[])
+int HuffmanEncodeFile(char *inFile, char *outFile)
 {
-    huffman_node_t *huffmanTree;                /* root of huffman tree */
-    canonical_list_t canonicalList[NUM_CHARS];  /* list of canonical codes */
-    int opt;
-    char *inFile, *outFile;
-    MODES mode;
+    FILE *fpIn;
+    bit_file_t *bfpOut;
+    huffman_node_t *huffmanTree;        /* root of huffman tree */
+    int c;
 
-    /* initialize variables */
-    inFile = NULL;
-    outFile = NULL;
-    mode = BUILD_TREE;
 
-    /* parse command line */
-    while ((opt = getopt(argc, argv, "cdtni:o:h?")) != -1)
+    /* open binary input file and bitfile output file */
+    if ((fpIn = fopen(inFile, "rb")) == NULL)
     {
-        switch(opt)
+        perror(inFile);
+        return FALSE;
+    }
+
+    if (outFile == NULL)
+    {
+        bfpOut = MakeBitFile(stdout, BF_WRITE);
+    }
+    else
+    {
+        if ((bfpOut = BitFileOpen(outFile, BF_WRITE)) == NULL)
         {
-            case 'c':       /* compression mode */
-                mode = COMPRESS;
-                break;
-
-            case 'd':       /* decompression mode */
-                mode = DECOMPRESS;
-                break;
-
-            case 't':       /* just build and display tree */
-                mode = BUILD_TREE;
-                break;
-
-            case 'i':       /* input file name */
-                if (inFile != NULL)
-                {
-                    fprintf(stderr, "Multiple input files not allowed.\n");
-                    free(inFile);
-
-                    if (outFile != NULL)
-                    {
-                        free(outFile);
-                    }
-
-                    exit(EXIT_FAILURE);
-                }
-                else if ((inFile = (char *)malloc(strlen(optarg) + 1)) == NULL)
-                {
-                    perror("Memory allocation");
-
-                    if (outFile != NULL)
-                    {
-                        free(outFile);
-                    }
-
-                    exit(EXIT_FAILURE);
-                }
-
-                strcpy(inFile, optarg);
-                break;
-
-            case 'o':       /* output file name */
-                if (outFile != NULL)
-                {
-                    fprintf(stderr, "Multiple output files not allowed.\n");
-                    free(outFile);
-
-                    if (inFile != NULL)
-                    {
-                        free(inFile);
-                    }
-
-                    exit(EXIT_FAILURE);
-                }
-                else if ((outFile = (char *)malloc(strlen(optarg) + 1)) == NULL)
-                {
-                    perror("Memory allocation");
-
-                    if (inFile != NULL)
-                    {
-                        free(inFile);
-                    }
-
-                    exit(EXIT_FAILURE);
-                }
-
-                strcpy(outFile, optarg);
-                break;
-
-            case 'h':
-            case '?':
-                printf("Usage: chuffman <options>\n\n");
-                printf("options:\n");
-                printf("  -c : Encode input file to output file.\n");
-                printf("  -d : Decode input file to output file.\n");
-                printf("  -t : Generate code tree for input file to output file.\n");
-                printf("  -i<filename> : Name of input file.\n");
-                printf("  -o<filename> : Name of output file.\n");
-                printf("  -h|?  : Print out command line options.\n\n");
-                printf("Default: chuffman -t -ostdout\n");
-                return(EXIT_SUCCESS);
+            perror(outFile);
+            fclose(fpIn);
+            return FALSE;
         }
     }
 
-    /* validate command line */
-    if (inFile == NULL)
+    /* build tree */
+    if ((huffmanTree = GenerateTreeFromFile(fpIn)) == NULL)
     {
-        fprintf(stderr, "Input file must be provided\n");
-        fprintf(stderr, "Enter \"chuffman -?\" for help.\n");
-        exit (EXIT_FAILURE);
+        fclose(fpIn);
+        BitFileClose(bfpOut);
+        return FALSE;
     }
 
-    if ((mode == COMPRESS) || (mode == BUILD_TREE))
+    /* use tree to generate a canonical code */
+    if (!BuildCanonicalCode(huffmanTree, canonicalList))
     {
-        /* build huffman tree and use code lengths for canonical code */
-        huffmanTree = GenerateTreeFromFile(inFile);
-        opt = BuildCanonicalCode(huffmanTree, canonicalList);
+        fclose(fpIn);
+        BitFileClose(bfpOut);
         FreeHuffmanTree(huffmanTree);     /* free allocated memory */
-
-        if (canonicalList == 0)
-        {
-            free(inFile);
-            perror("Memory allocation");
-            exit (EXIT_FAILURE);
-        }
-
-        /* determine what to do with code */
-        if (mode == COMPRESS)
-        {
-            /* write encoded file */
-            EncodeFile(canonicalList, inFile, outFile);
-        }
-        else
-        {
-            /* just output code */
-            PrintCode(canonicalList, outFile);
-        }
+        return FALSE;
     }
-    else if (mode == DECOMPRESS)
+
+    /* write out encoded file */
+
+    /* write header for rebuilding of code */
+    WriteHeader(canonicalList, bfpOut);
+
+    /* read characters from file and write them to encoded file */
+    rewind(fpIn);               /* start another pass on the input file */
+
+    while((c = fgetc(fpIn)) != EOF)
     {
-        DecodeFile(canonicalList, inFile, outFile);
+        /* write encoded symbols */
+        BitFilePutBits(bfpOut,
+            BitArrayGetBits(canonicalList[c].code),
+            canonicalList[c].codeLen);
     }
 
-    /* clean up*/
-    free(inFile);
-    if (outFile != NULL)
-    {
-        free(outFile);
-    }
+    /* now write EOF */
+    BitFilePutBits(bfpOut,
+        BitArrayGetBits(canonicalList[EOF_CHAR].code),
+        canonicalList[EOF_CHAR].codeLen);
 
-    for(opt = 0; opt < NUM_CHARS; opt++)
-    {
-        if (canonicalList[opt].code != NULL)
-        {
-            BitArrayDestroy(canonicalList[opt].code);
-        }
-    }
+    /* clean up */
+    fclose(fpIn);
+    BitFileClose(bfpOut);
 
-    return(EXIT_SUCCESS);
+    return TRUE;
 }
 
 /****************************************************************************
-*   Function   : GenerateTreeFromFile
-*   Description: This routine creates a huffman tree optimized for encoding
-*                the file passed as a parameter.
-*   Parameters : inFile - Name of file to create tree for
-*   Effects    : Huffman tree is built for file.
-*   Returned   : Pointer to resulting tree
+*   Function   : HuffmanDecodeFile
+*   Description: This routine reads a Huffman coded file and writes out a
+*                decoded version of that file.
+*   Parameters : inFile - Name of file to decode
+*                outFile - Name of file to write a tree to
+*   Effects    : Huffman encoded file is decoded
+*   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-huffman_node_t *GenerateTreeFromFile(char *inFile)
+int HuffmanDecodeFile(char *inFile, char *outFile)
 {
-    huffman_node_t *huffmanTree;              /* root of huffman tree */
-    int c;
-    FILE *fp;
+    bit_file_t *bfpIn;
+    FILE *fpOut;
+    bit_array_t *code;
+    byte_t length;
+    char decodedEOF;
+    int i, newBit;
+    int lenIndex[NUM_CHARS];
 
-    /* open file as binary */
-    if ((fp = fopen(inFile, "rb")) == NULL)
+    /* open binary output file and bitfile input file */
+    if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
     {
         perror(inFile);
-        exit(EXIT_FAILURE);
+        return FALSE;
     }
 
-    /* allocate array of leaves for all possible characters */
-    for (c = 0; c < NUM_CHARS; c++)
+    if (outFile == NULL)
     {
-        huffmanArray[c] = AllocHuffmanNode(c);
+        fpOut = stdout;
     }
-
-    /* assume that there will be exactly 1 EOF */
-    huffmanArray[EOF_CHAR]->count = 1;
-    huffmanArray[EOF_CHAR]->ignore = FALSE;
-
-    /* count occurrence of each character */
-    while ((c = fgetc(fp)) != EOF)
+    else
     {
-        if (huffmanArray[c]->count < COUNT_T_MAX)
+        if ((fpOut = fopen(outFile, "wb")) == NULL)
         {
-            /* increment count for character and include in tree */
-            huffmanArray[c]->count++;
-            huffmanArray[c]->ignore = FALSE;
-        }
-        else
-        {
-            fprintf(stderr,
-                "This file contains too many 0x%02X to count.\n", c);
-            exit(EXIT_FAILURE);
+            BitFileClose(bfpIn);
+            perror(outFile);
+            return FALSE;
         }
     }
 
-    fclose(fp);
+    /* allocate canonical code list */
+    code = BitArrayCreate(256);
+    if (code == NULL)
+    {
+        perror("Bit array allocation");
+        BitFileClose(bfpIn);
+        fclose(fpOut);
+        return FALSE;
+    }
 
-    /* put array of leaves into a huffman tree */
-    huffmanTree = BuildHuffmanTree(huffmanArray, NUM_CHARS);
+    /* initialize canonical list */
+    for (i = 0; i < NUM_CHARS; i++)
+    {
+        canonicalList[i].codeLen = 0;
+        canonicalList[i].code = NULL;
+    }
 
-    return(huffmanTree);
+    /* populate list with code length from file header */
+    if (!ReadHeader(canonicalList, bfpIn))
+    {
+        BitArrayDestroy(code);
+        BitFileClose(bfpIn);
+        fclose(fpOut);
+        return FALSE;
+    }
+
+    /* sort the header by code length */
+    qsort(canonicalList, NUM_CHARS, sizeof(canonical_list_t),
+        CompareByCodeLen);
+
+    /* assign the codes using same rule as encode */
+    if (AssignCanonicalCodes(canonicalList) == 0)
+    {
+        /* failed to assign codes */
+        BitFileClose(bfpIn);
+        fclose(fpOut);
+
+        for (i = 0; i < NUM_CHARS; i++)
+        {
+            if(canonicalList[i].code != NULL)
+            {
+                BitArrayDestroy(canonicalList[i].code);
+            }
+        }
+
+        return FALSE;
+    }
+
+    /* now we have a huffman code that matches the code used on the encode */
+
+    /* create an index of first code at each possible length */
+    for (i = 0; i < NUM_CHARS; i++)
+    {
+        lenIndex[i] = NUM_CHARS;
+    }
+
+    for (i = 0; i < NUM_CHARS; i++)
+    {
+        if (lenIndex[canonicalList[i].codeLen] > i)
+        {
+            /* first occurance of this code length */
+            lenIndex[canonicalList[i].codeLen] = i;
+        }
+    }
+
+    /* decode input file */
+    length = 0;
+    BitArrayClearAll(code);
+    decodedEOF = FALSE;
+
+    while(((newBit = BitFileGetBit(bfpIn)) != EOF) && (!decodedEOF))
+    {
+        if (newBit != 0)
+        {
+            BitArraySetBit(code, length);
+        }
+
+        length++;
+
+        if (lenIndex[length] != NUM_CHARS)
+        {
+            /* there are code of this length */
+            for(i = lenIndex[length];
+                (i < NUM_CHARS) && (canonicalList[i].codeLen == length);
+                i++)
+            {
+                if ((BitArrayCompare(canonicalList[i].code, code) == 0) &&
+                    (canonicalList[i].codeLen == length))
+                {
+                    /* we just read a symbol output decoded value */
+                    if (canonicalList[i].value != EOF_CHAR)
+                    {
+                        fputc(canonicalList[i].value, fpOut);
+                    }
+                    else
+                    {
+                        decodedEOF = TRUE;
+                    }
+                    BitArrayClearAll(code);
+                    length = 0;
+
+                    break;
+                }
+            }
+        }
+    }
+
+    /* close all files */
+    BitFileClose(bfpIn);
+    fclose(fpOut);
+
+    return TRUE;
+}
+
+/****************************************************************************
+*   Function   : HuffmanShowTree
+*   Description: This routine genrates a huffman tree optimized for a file
+*                and writes out an ASCII representation of the code
+*                represented by the tree.
+*   Parameters : inFile - Name of file to create tree for
+*                outFile - Name of file to write a tree to
+*   Effects    : Huffman tree is written out to a file
+*   Returned   : TRUE for success, otherwise FALSE.
+****************************************************************************/
+int HuffmanShowTree(char *inFile, char *outFile)
+{
+    FILE *fpIn, *fpOut;
+    huffman_node_t *huffmanTree;        /* root of huffman tree */
+    int i, length;
+
+    /* open binary input and output files */
+    if ((fpIn = fopen(inFile, "rb")) == NULL)
+    {
+        perror(inFile);
+        return FALSE;
+    }
+
+    if (outFile == NULL)
+    {
+        fpOut = stdout;
+    }
+    else
+    {
+        if ((fpOut = fopen(outFile, "w")) == NULL)
+        {
+            perror(outFile);
+            fclose(fpIn);
+            return FALSE;
+        }
+    }
+
+    /* build tree */
+    if ((huffmanTree = GenerateTreeFromFile(fpIn)) == NULL)
+    {
+        fclose(fpIn);
+        fclose(fpOut);
+        return FALSE;
+    }
+
+    /* use tree to generate a canonical code */
+    if (!BuildCanonicalCode(huffmanTree, canonicalList))
+    {
+        fclose(fpIn);
+        fclose(fpOut);
+        FreeHuffmanTree(huffmanTree);     /* free allocated memory */
+        return FALSE;
+    }
+
+    FreeHuffmanTree(huffmanTree);     /* free allocated memory */
+
+    /* write out canonical code */
+    /* print heading to make things look pretty (int is 10 char max) */
+    fprintf(fpOut, "Char  CodeLen  Encoding\n");
+    fprintf(fpOut, "----- -------- ----------------\n");
+
+    for(i = 0; i < NUM_CHARS; i++)
+    {
+        if(canonicalList[i].codeLen > 0)
+        {
+            if (canonicalList[i].value != EOF_CHAR)
+            {
+                fprintf(fpOut,
+                        "0x%02X  %02d       ",
+                        canonicalList[i].value, canonicalList[i].codeLen);
+            }
+            else
+            {
+                fprintf(fpOut,
+                        "EOF   %02d       ", canonicalList[i].codeLen);
+            }
+
+            /* now write out the code bits */
+            for(length = 0; length < canonicalList[i].codeLen; length++)
+            {
+                if (BitArrayTestBit(canonicalList[i].code, length))
+                {
+                    fputc('1', fpOut);
+                }
+                else
+                {
+                    fputc('0', fpOut);
+                }
+            }
+
+            fputc('\n', fpOut);
+        }
+    }
+
+    /* clean up */
+    fclose(fpIn);
+    fclose(fpOut);
+
+    return TRUE;
 }
 
 /****************************************************************************
@@ -415,7 +515,6 @@ huffman_node_t *AllocHuffmanNode(int value)
     else
     {
         perror("Allocate Node");
-        exit(EXIT_FAILURE);
     }
 
     return ht;
@@ -456,7 +555,7 @@ huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
     else
     {
         perror("Allocate Composite");
-        exit(EXIT_FAILURE);
+        return NULL;
     }
 
     return ht;
@@ -484,6 +583,60 @@ void FreeHuffmanTree(huffman_node_t *ht)
     }
 
     free(ht);
+}
+
+/****************************************************************************
+*   Function   : GenerateTreeFromFile
+*   Description: This routine creates a huffman tree optimized for encoding
+*                the file passed as a parameter.
+*   Parameters : inFile - Name of file to create tree for
+*   Effects    : Huffman tree is built for file.
+*   Returned   : Pointer to resulting tree.  NULL on failure.
+****************************************************************************/
+huffman_node_t *GenerateTreeFromFile(FILE *inFile)
+{
+    huffman_node_t *huffmanTree;              /* root of huffman tree */
+    int c;
+
+    /* allocate array of leaves for all possible characters */
+    for (c = 0; c < NUM_CHARS; c++)
+    {
+        if ((huffmanArray[c] = AllocHuffmanNode(c)) == NULL)
+        {
+            /* allocation failed clear existing allocations */
+            for (c--; c >= 0; c--)
+            {
+                free(huffmanArray[c]);
+            }
+            return NULL;
+        }
+    }
+
+    /* assume that there will be exactly 1 EOF */
+    huffmanArray[EOF_CHAR]->count = 1;
+    huffmanArray[EOF_CHAR]->ignore = FALSE;
+
+    /* count occurrence of each character */
+    while ((c = fgetc(inFile)) != EOF)
+    {
+        if (huffmanArray[c]->count < COUNT_T_MAX)
+        {
+            /* increment count for character and include in tree */
+            huffmanArray[c]->count++;
+            huffmanArray[c]->ignore = FALSE;
+        }
+        else
+        {
+            fprintf(stderr,
+                "Input file contains too many 0x%02X to count.\n", c);
+            return NULL;
+        }
+    }
+
+    /* put array of leaves into a huffman tree */
+    huffmanTree = BuildHuffmanTree(huffmanArray, NUM_CHARS);
+
+    return huffmanTree;
 }
 
 /****************************************************************************
@@ -519,6 +672,7 @@ int FindMinimumCount(huffman_node_t **ht, int elements)
             currentLevel = ht[i]->level;
         }
     }
+
     return currentIndex;
 }
 
@@ -561,13 +715,16 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
         ht[min2]->ignore = TRUE;    /* remove from consideration */
 
         /* combine nodes into a tree */
-        ht[min1] = AllocHuffmanCompositeNode(ht[min1], ht[min2]);
+        if ((ht[min1] = AllocHuffmanCompositeNode(ht[min1], ht[min2])) == NULL)
+        {
+            return NULL;
+        }
+
         ht[min2] = NULL;
     }
 
     return ht[min1];
 }
-
 
 /****************************************************************************
 *   Function   : CompareByCodeLen
@@ -601,7 +758,7 @@ int CompareByCodeLen(const void *item1, const void *item2)
         if (((canonical_list_t *)item1)->value >
             ((canonical_list_t *)item2)->value)
         {
-            return 1;;
+            return 1;
         }
         else
         {
@@ -759,7 +916,7 @@ int AssignCanonicalCodes(canonical_list_t *cl)
         {
             perror("Duplicating code");
             BitArrayDestroy(code);
-            return 0;
+            return FALSE;
         }
 
         BitArrayShiftLeft(cl[i].code, 256 - length);
@@ -768,133 +925,7 @@ int AssignCanonicalCodes(canonical_list_t *cl)
     }
 
     BitArrayDestroy(code);
-    return 1;
-}
-
-/****************************************************************************
-*   Function   : PrintCode
-*   Description: This function prints the codes for each symbol in a
-*                canonical list with a non-zero code length.
-*   Parameters : cl - canonical list of codes
-*                outFile - where to output results (NULL -> stdout)
-*   Effects    : The code for the characters contained in the list is
-*                printed to outFile.
-*   Returned   : None
-****************************************************************************/
-void PrintCode(canonical_list_t *cl, char *outFile)
-{
-    int i;
-    int length = 0;
-    FILE *fp;
-
-    if (outFile == NULL)
-    {
-        fp = stdout;
-    }
-    else
-    {
-        if ((fp = fopen(outFile, "w")) == NULL)
-        {
-            perror(outFile);
-        }
-    }
-
-    /* print heading to make things look pretty (int is 10 char max) */
-    fprintf(fp, "Char  CodeLen  Encoding\n");
-    fprintf(fp, "----- -------- ----------------\n");
-
-    for(i = 0; i < NUM_CHARS; i++)
-    {
-        if(cl[i].codeLen > 0)
-        {
-            if (cl[i].value != EOF_CHAR)
-            {
-                fprintf(fp,
-                        "0x%02X  %02d       ", cl[i].value, cl[i].codeLen);
-            }
-            else
-            {
-                fprintf(fp,
-                        "EOF   %02d       ", cl[i].codeLen);
-            }
-
-            /* now write out the code bits */
-            for(length = 0; length < cl[i].codeLen; length++)
-            {
-                if (BitArrayTestBit(cl[i].code, length))
-                {
-                    fputc('1', fp);
-                }
-                else
-                {
-                    fputc('0', fp);
-                }
-            }
-
-            fputc('\n', fp);
-        }
-    }
-
-    if (outFile != NULL)
-    {
-        fclose(fp);
-    }
-}
-
-/****************************************************************************
-*   Function   : EncodeFile
-*   Description: This function uses the provide Huffman code to encode
-*                the file passed as a parameter.
-*   Parameters : cl - pointer to list of canonical Huffman codes
-*                inFile - file to encode
-*                outFile - where to output results (NULL -> stdout)
-*   Effects    : inFile is encoded and the code plus the results are
-*                written to outFile.
-*   Returned   : None
-****************************************************************************/
-void EncodeFile(canonical_list_t *cl, char *inFile, char *outFile)
-{
-    FILE *fpIn;
-    bit_file_t *bfpOut;
-    int c;
-
-    /* open binary input and output files */
-    if ((fpIn = fopen(inFile, "rb")) == NULL)
-    {
-        perror(inFile);
-        exit(EXIT_FAILURE);
-    }
-
-    if (outFile == NULL)
-    {
-        bfpOut = MakeBitFile(stdout, BF_WRITE);
-    }
-    else
-    {
-        if ((bfpOut = BitFileOpen(outFile, BF_WRITE)) == NULL)
-        {
-            perror(outFile);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    WriteHeader(cl, bfpOut);        /* write header for rebuilding of tree */
-
-    while((c = fgetc(fpIn)) != EOF)
-    {
-        /* write encoded symbols */
-        BitFilePutBits(bfpOut,
-            BitArrayGetBits(cl[c].code),
-            cl[c].codeLen);
-    }
-
-    /* now write EOF */
-    BitFilePutBits(bfpOut,
-        BitArrayGetBits(cl[EOF_CHAR].code),
-        cl[EOF_CHAR].codeLen);
-
-    fclose(fpIn);
-    BitFileClose(bfpOut);
+    return TRUE;
 }
 
 /****************************************************************************
@@ -922,154 +953,6 @@ void WriteHeader(canonical_list_t *cl, bit_file_t *bfp)
 }
 
 /****************************************************************************
-*   Function   : DecodeFile
-*   Description: This function decodes a huffman encode file, writing the
-*                results to the specified output file.
-*   Parameters : cl - pointer to list for storing codes
-*                inFile - file to decode
-*                outFile - where to output results (NULL -> stdout)
-*   Effects    : inFile is decode and the results are written to outFile.
-*   Returned   : None
-****************************************************************************/
-void DecodeFile(canonical_list_t *cl, char *inFile, char *outFile)
-{
-    bit_array_t *code;
-    byte_t length;
-    char decodedEOF;
-    int i, newBit;
-    int lenIndex[NUM_CHARS];
-    bit_file_t *bfpIn;
-    FILE *fpOut;
-
-    if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
-    {
-        perror(inFile);
-        exit(EXIT_FAILURE);
-    }
-
-    if (outFile == NULL)
-    {
-        fpOut = stdout;
-    }
-    else
-    {
-        if ((fpOut = fopen(outFile, "wb")) == NULL)
-        {
-            BitFileClose(bfpIn);
-            perror(outFile);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    /* allocate canonical code list */
-    code = BitArrayCreate(256);
-    if (code == NULL)
-    {
-        perror("Bit array allocation");
-        BitFileClose(bfpIn);
-        fclose(fpOut);
-        exit(EXIT_FAILURE);
-    }
-
-    /* initialize canonical list */
-    for (i = 0; i < NUM_CHARS; i++)
-    {
-        cl[i].codeLen = 0;
-        cl[i].code = NULL;
-    }
-
-    /* populate list with code length from file header */
-    ReadHeader(cl, bfpIn);
-
-    /* sort the header by code length */
-    qsort(cl, NUM_CHARS, sizeof(canonical_list_t), CompareByCodeLen);
-
-    /* assign the codes using same rule as encode */
-    if (AssignCanonicalCodes(cl) == 0)
-    {
-        /* failed to assign codes */
-        BitFileClose(bfpIn);
-        fclose(fpOut);
-
-        for (i = 0; i < NUM_CHARS; i++)
-        {
-            if(cl[i].code != NULL)
-            {
-                BitArrayDestroy(cl[i].code);
-            }
-        }
-
-        exit(EXIT_FAILURE);
-    }
-
-    /* now we have a huffman code that matches the code used on the encode */
-
-    /* create an index of first code at each possible length */
-    for (i = 0; i < NUM_CHARS; i++)
-    {
-        lenIndex[i] = NUM_CHARS;
-    }
-
-    for (i = 0; i < NUM_CHARS; i++)
-    {
-        if (lenIndex[cl[i].codeLen] > i)
-        {
-            /* first occurance of this code length */
-            lenIndex[cl[i].codeLen] = i;
-        }
-    }
-
-    /* decode input file */
-    length = 0;
-    BitArrayClearAll(code);
-    decodedEOF = FALSE;
-
-    while(((newBit = BitFileGetBit(bfpIn)) != EOF) && (!decodedEOF))
-    {
-        if (newBit != 0)
-        {
-            BitArraySetBit(code, length);
-        }
-
-        length++;
-
-        if (lenIndex[length] != NUM_CHARS)
-        {
-            /* there are code of this length */
-            for(i = lenIndex[length];
-                (i < NUM_CHARS) && (cl[i].codeLen == length);
-                i++)
-            {
-                if ((BitArrayCompare(cl[i].code, code) == 0) &&
-                    (cl[i].codeLen == length))
-                {
-                    /* we just read a symbol output decoded value */
-                    if (cl[i].value != EOF_CHAR)
-                    {
-                        fputc(cl[i].value, fpOut);
-                    }
-                    else
-                    {
-                        decodedEOF = TRUE;
-                    }
-                    BitArrayClearAll(code);
-                    length = 0;
-
-                    break;
-                }
-            }
-        }
-    }
-
-    /* close all files */
-    BitFileClose(bfpIn);
-    fclose(fpOut);
-
-    /* free allocated memory */
-    BitArrayDestroy(code);
-}
-
-/****************************************************************************
 *   Function   : ReadHeader
 *   Description: This function reads the header information stored by
 *                WriteHeader.  If the same algorithm that produced the
@@ -1079,9 +962,9 @@ void DecodeFile(canonical_list_t *cl, char *inFile, char *outFile)
 *                bfp - file to read from
 *   Effects    : Code lengths and symbols are read into the canonical list.
 *                Total number of symbols encoded is store in totalCount
-*   Returned   : None
+*   Returned   : TRUE on success, otherwise FALSE.
 ****************************************************************************/
-void ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
+int ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
 {
     int c;
     int i;
@@ -1098,7 +981,10 @@ void ReadHeader(canonical_list_t *cl, bit_file_t *bfp)
         }
         else
         {
-            /* should probably handle short header */
+            fprintf(stderr, "error: malformed file header.\n");
+            return FALSE;
         }
     }
+
+    return TRUE;
 }
