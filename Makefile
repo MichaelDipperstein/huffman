@@ -26,7 +26,7 @@
 
 CC = gcc
 LD = gcc
-CFLAGS = -O3 -Wall -ansi -pedantic -c
+CFLAGS = -O3 -Wall -Wextra -ansi -pedantic -c
 LDFLAGS = -O3 -o
 
 # libraries

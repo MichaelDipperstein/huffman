@@ -531,7 +531,7 @@ static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
 ****************************************************************************/
 static void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
 {
-    int i;
+    unsigned int i;
 
     for(;;)
     {

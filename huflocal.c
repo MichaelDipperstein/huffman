@@ -243,10 +243,14 @@ void FreeHuffmanTree(huffman_node_t *ht)
 ****************************************************************************/
 static int FindMinimumCount(huffman_node_t **ht, int elements)
 {
-    int i;                          /* array index */
-    int currentIndex = NONE;        /* index with lowest count seen so far */
-    int currentCount = INT_MAX;     /* lowest count seen so far */
-    int currentLevel = INT_MAX;     /* level of lowest count seen so far */
+    int i;                      /* array index */
+    int currentIndex;           /* index with lowest count seen so far */
+    unsigned int currentCount;  /* lowest count seen so far */
+    int currentLevel;           /* level of lowest count seen so far */
+
+    currentIndex = NONE;
+    currentCount = UINT_MAX;
+    currentLevel = INT_MAX;
 
     /* sequentially search array */
     for (i = 0; i < elements; i++)
