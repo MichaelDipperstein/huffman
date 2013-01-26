@@ -75,12 +75,11 @@ void ShowArray(char *name, bit_array_t *ba)
 *   Function   : main
 *   Description: This function demonstrates the usage of each of the bit
 *                array functions.
-*   Parameters : argc - the number command line arguements (not used)
-*   Parameters : argv - array of command line arguements (not used)
+*   Parameters : None
 *   Effects    : Writes results of bit operations to stdout.
 *   Returned   : EXIT_SUCCESS
 ***************************************************************************/
-int main(int argc, char *argv[])
+int main()
 {
     bit_array_t *ba1, *ba2;
     int i;

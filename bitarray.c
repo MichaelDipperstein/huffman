@@ -120,6 +120,12 @@ bit_array_t *BitArrayCreate(unsigned int bits)
 {
     bit_array_t *ba;
 
+    if (0 == bits)
+    {
+        errno = EINVAL;
+        return NULL;
+    }
+
     /* allocate structure */
     ba = (bit_array_t *)malloc(sizeof(bit_array_t));
 
@@ -182,7 +188,7 @@ void BitArrayDestroy(bit_array_t *ba)
 ***************************************************************************/
 void BitArrayDump(bit_array_t *ba, FILE *outFile)
 {
-    int i;
+    unsigned i;
 
     if ((ba == NULL) || (ba->numBits == 0))
     {
@@ -423,7 +429,7 @@ void BitArrayAnd(bit_array_t *dest,
                  const bit_array_t *src1,
                  const bit_array_t *src2)
 {
-    int i;
+    unsigned i;
 
     if (src1 == NULL)
     {
@@ -475,7 +481,7 @@ void BitArrayOr(bit_array_t *dest,
            const bit_array_t *src1,
            const bit_array_t *src2)
 {
-    int i;
+    unsigned i;
 
     if (src1 == NULL)
     {
@@ -527,7 +533,7 @@ void BitArrayXor(bit_array_t *dest,
             const bit_array_t *src1,
             const bit_array_t *src2)
 {
-    int i;
+    unsigned i;
 
     if (src1 == NULL)
     {
@@ -578,7 +584,7 @@ void BitArrayXor(bit_array_t *dest,
 void BitArrayNot(bit_array_t *dest,
             const bit_array_t *src)
 {
-    int i, bits;
+    unsigned i, bits;
     unsigned char mask;
 
     if (src == NULL)
@@ -624,8 +630,10 @@ void BitArrayNot(bit_array_t *dest,
 ***************************************************************************/
 void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
 {
-    int i, j;
-    int chars = shifts / CHAR_BIT;  /* number of whole byte shifts */
+    unsigned i, j;
+    int chars;
+
+    chars = shifts / CHAR_BIT;  /* number of whole byte shifts */
     shifts = shifts % CHAR_BIT;     /* number of bit shifts remaining */
 
     if (ba == NULL)
@@ -686,9 +694,11 @@ void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
 ***************************************************************************/
 void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts)
 {
-    int i, j;
+    unsigned i, j;
     unsigned char mask;
-    int chars = shifts / CHAR_BIT;  /* number of whole byte shifts */
+    unsigned chars;
+
+    chars = shifts / CHAR_BIT;      /* number of whole byte shifts */
     shifts = shifts % CHAR_BIT;     /* number of bit shifts remaining */
 
     if (ba == NULL)
@@ -706,7 +716,7 @@ void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts)
     /* first handle big jumps of bytes */
     if (chars > 0)
     {
-        for (i = BIT_CHAR(ba->numBits - 1); (i - chars) >= 0; i--)
+        for (i = BIT_CHAR(ba->numBits - 1); i >= chars; i--)
         {
             ba->array[i] = ba->array[i - chars];
         }
@@ -865,7 +875,7 @@ void BitArrayDecrement(bit_array_t *ba)
 ***************************************************************************/
 int BitArrayCompare(const bit_array_t *ba1, const bit_array_t *ba2)
 {
-    int i;
+    unsigned i;
 
     if (ba1 == NULL)
     {
