@@ -118,7 +118,7 @@ static int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 ***************************************************************************/
 
 /****************************************************************************
-*   Function   : CHuffmanEncodeFile
+*   Function   : CanonicalEncodeFile
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an encoded version of that file.
 *   Parameters : inFile - Name of file to encode
@@ -126,7 +126,7 @@ static int ReadHeader(canonical_list_t *cl,  bit_file_t *bfp);
 *   Effects    : File is Huffman encoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int CHuffmanEncodeFile(char *inFile, char *outFile)
+int CanonicalEncodeFile(char *inFile, char *outFile)
 {
     FILE *fpIn;
     bit_file_t *bfpOut;
@@ -201,7 +201,7 @@ int CHuffmanEncodeFile(char *inFile, char *outFile)
 }
 
 /****************************************************************************
-*   Function   : CHuffmanDecodeFile
+*   Function   : CanonicalDecodeFile
 *   Description: This routine reads a Huffman coded file and writes out a
 *                decoded version of that file.
 *   Parameters : inFile - Name of file to decode
@@ -209,7 +209,7 @@ int CHuffmanEncodeFile(char *inFile, char *outFile)
 *   Effects    : Huffman encoded file is decoded
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int CHuffmanDecodeFile(char *inFile, char *outFile)
+int CanonicalDecodeFile(char *inFile, char *outFile)
 {
     bit_file_t *bfpIn;
     FILE *fpOut;
@@ -355,7 +355,7 @@ int CHuffmanDecodeFile(char *inFile, char *outFile)
 }
 
 /****************************************************************************
-*   Function   : CHuffmanShowTree
+*   Function   : CanonicalShowTree
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an ASCII representation of the code
 *                represented by the tree.
@@ -364,7 +364,7 @@ int CHuffmanDecodeFile(char *inFile, char *outFile)
 *   Effects    : Huffman tree is written out to a file
 *   Returned   : TRUE for success, otherwise FALSE.
 ****************************************************************************/
-int CHuffmanShowTree(char *inFile, char *outFile)
+int CanonicalShowTree(char *inFile, char *outFile)
 {
     FILE *fpIn, *fpOut;
     huffman_node_t *huffmanTree;        /* root of huffman tree */

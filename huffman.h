@@ -58,8 +58,8 @@ int HuffmanEncodeFile(char *inFile, char *outFile);     /* encode file */
 int HuffmanDecodeFile(char *inFile, char *outFile);     /* decode file */
 
 /* canonical code */
-int CHuffmanShowTree(char *inFile, char *outFile);       /* dump codes */
-int CHuffmanEncodeFile(char *inFile, char *outFile);     /* encode file */
-int CHuffmanDecodeFile(char *inFile, char *outFile);     /* decode file */
+int CanonicalShowTree(char *inFile, char *outFile);      /* dump codes */
+int CanonicalEncodeFile(char *inFile, char *outFile);    /* encode file */
+int CanonicalDecodeFile(char *inFile, char *outFile);    /* decode file */
 
 #endif /* _HUFFMAN_H_ */

@@ -42,7 +42,6 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 *
 ***************************************************************************/
-#define _HUFFMAN_LOCAL_C
 
 /***************************************************************************
 *                             INCLUDED FILES
@@ -85,7 +84,8 @@
 ****************************************************************************/
 huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 {
-    huffman_node_t *huffmanTree;              /* root of huffman tree */
+    huffman_node_t *huffmanArray[NUM_CHARS];    /* array of all leaves */
+    huffman_node_t *huffmanTree;                /* root of huffman tree */
     int c;
 
     /* allocate array of leaves for all possible characters */

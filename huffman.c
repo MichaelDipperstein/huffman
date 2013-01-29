@@ -215,6 +215,7 @@ int HuffmanEncodeFile(char *inFile, char *outFile)
 ****************************************************************************/
 int HuffmanDecodeFile(char *inFile, char *outFile)
 {
+    huffman_node_t *huffmanArray[NUM_CHARS];    /* array of all leaves */
     huffman_node_t *huffmanTree, *currentNode;
     int i, c;
     bit_file_t *bfpIn;

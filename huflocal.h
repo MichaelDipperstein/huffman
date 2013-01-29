@@ -101,16 +101,6 @@ typedef struct huffman_node_t
 #define max(a, b) ((a)>(b)?(a):(b))
 
 /***************************************************************************
-*                            GLOBAL VARIABLES
-***************************************************************************/
-#ifdef _HUFFMAN_LOCAL_C
-#define _HL_EXTERN
-#else
-#define _HL_EXTERN  extern
-#endif
-_HL_EXTERN huffman_node_t *huffmanArray[NUM_CHARS]; /* array of all leaves */
-
-/***************************************************************************
 *                               PROTOTYPES
 ***************************************************************************/
 

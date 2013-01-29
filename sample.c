@@ -225,7 +225,7 @@ int main (int argc, char *argv[])
         case SHOW_TREE:
             if (canonical)
             {
-                status = CHuffmanShowTree(inFile, outFile);
+                status = CanonicalShowTree(inFile, outFile);
             }
             else
             {
@@ -236,7 +236,7 @@ int main (int argc, char *argv[])
         case COMPRESS:
             if (canonical)
             {
-                status = CHuffmanEncodeFile(inFile, outFile);
+                status = CanonicalEncodeFile(inFile, outFile);
             }
             else
             {
@@ -247,7 +247,7 @@ int main (int argc, char *argv[])
         case DECOMPRESS:
             if (canonical)
             {
-                status = CHuffmanDecodeFile(inFile, outFile);
+                status = CanonicalDecodeFile(inFile, outFile);
             }
             else
             {
