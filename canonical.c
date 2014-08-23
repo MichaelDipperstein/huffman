@@ -75,6 +75,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "huflocal.h"
+#include "huffman.h"
 #include "bitarray.h"
 #include "bitfile.h"
 
@@ -99,7 +100,6 @@ typedef struct canonical_list_t
 /***************************************************************************
 *                            GLOBAL VARIABLES
 ***************************************************************************/
-canonical_list_t canonicalList[NUM_CHARS];      /* list of canonical codes */
 
 /***************************************************************************
 *                               PROTOTYPES
@@ -132,6 +132,7 @@ int CanonicalEncodeFile(char *inFile, char *outFile)
     bit_file_t *bfpOut;
     huffman_node_t *huffmanTree;        /* root of huffman tree */
     int c;
+    canonical_list_t canonicalList[NUM_CHARS];  /* list of canonical codes */
 
 
     /* open binary input file and bitfile output file */
@@ -218,6 +219,7 @@ int CanonicalDecodeFile(char *inFile, char *outFile)
     char decodedEOF;
     int i, newBit;
     int lenIndex[NUM_CHARS];
+    canonical_list_t canonicalList[NUM_CHARS];  /* list of canonical codes */
 
     /* open binary output file and bitfile input file */
     if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
@@ -369,6 +371,7 @@ int CanonicalShowTree(char *inFile, char *outFile)
     FILE *fpIn, *fpOut;
     huffman_node_t *huffmanTree;        /* root of huffman tree */
     int i, length;
+    canonical_list_t canonicalList[NUM_CHARS];  /* list of canonical codes */
 
     /* open binary input and output files */
     if ((fpIn = fopen(inFile, "rb")) == NULL)

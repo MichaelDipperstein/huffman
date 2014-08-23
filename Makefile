@@ -16,7 +16,7 @@
 #
 #   Revision 1.5  2004/02/26 04:47:55  michael
 #   Compile to executable sample program, which links to either huffman or
-#   chuffman.
+#   canonical.
 #
 #   Revision 1.3  2004/01/13 15:35:47  michael
 #   Add CVS Log
@@ -53,15 +53,15 @@ sample$(EXE):	sample.o libhuffman.a liboptlist.a
 sample.o:	sample.c huffman.h optlist.h
 		$(CC) $(CFLAGS) $<
 
-libhuffman.a:	huffman.o chuffman.o huflocal.o bitarray.o bitfile.o
-		ar crv libhuffman.a huffman.o chuffman.o huflocal.o\
+libhuffman.a:	huffman.o canonical.o huflocal.o bitarray.o bitfile.o
+		ar crv libhuffman.a huffman.o canonical.o huflocal.o\
 		bitarray.o bitfile.o
 		ranlib libhuffman.a
 
 huffman.o:	huffman.c huflocal.h bitarray.h bitfile.h
 		$(CC) $(CFLAGS) $<
 
-chuffman.o:	chuffman.c huflocal.h bitarray.h bitfile.h
+canonical.o:	canonical.c huflocal.h bitarray.h bitfile.h
 		$(CC) $(CFLAGS) $<
 
 huflocal.o:	huflocal.c huflocal.h

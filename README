@@ -15,7 +15,7 @@ bitarray.c      - Library providing logical operations on arbitrary length
 bitarray.h      - Header for bit array library.
 bitfile.c       - Library to allow bitwise reading and writing of files.
 bitfile.h       - Header for bitfile library.
-chuffman.c      - Huffman encoding and decoding routines using canonical codes
+canonical.c     - Huffman encoding and decoding routines using canonical codes
 COPYING         - Rules for copying and distributing GPL software
 COPYING.LESSER  - Rules for copying and distributing LGPL software
 huffman.c       - Huffman encoding and decoding routines
@@ -98,6 +98,7 @@ HISTORY
           - Replaces getopt() with optlist library.
 06/08/08  - Incorporates Emanuele Giaquinta's patch to eliminate redundant
             check during the canonical decode process.
+08/24/14  - Restructured code for cleaner Traditional/Canonical separation
 
 TODO
 ----

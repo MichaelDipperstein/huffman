@@ -65,14 +65,11 @@ typedef enum
     SHOW_TREE,
     COMPRESS,
     DECOMPRESS
-} MODES;
+} mode_t;
 
 /***************************************************************************
 *                                CONSTANTS
 ***************************************************************************/
-#define FALSE   0
-#define TRUE    1
-#define NONE    -1
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -95,7 +92,7 @@ int main (int argc, char *argv[])
     int status, canonical;
     option_t *optList, *thisOpt;
     char *inFile, *outFile;
-    MODES mode;
+    mode_t mode;
 
     /* initialize variables */
     inFile = NULL;
@@ -112,7 +109,7 @@ int main (int argc, char *argv[])
         switch(thisOpt->option)
         {
             case 'C':       /* use canonical code */
-                canonical = 1;
+                canonical = TRUE;
                 break;
 
             case 'c':       /* compression mode */

@@ -70,6 +70,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "huflocal.h"
+#include "huffman.h"
 #include "bitarray.h"
 #include "bitfile.h"
 

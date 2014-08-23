@@ -85,8 +85,6 @@ typedef struct huffman_node_t
 /***************************************************************************
 *                                CONSTANTS
 ***************************************************************************/
-#define FALSE   0
-#define TRUE    1
 #define NONE    -1
 
 #define COUNT_T_MAX     UINT_MAX    /* based on count_t being unsigned int */
