@@ -8,24 +8,9 @@
 *   Date    : February 25, 2004
 *
 ****************************************************************************
-*   UPDATES
-*
-*   $Id: huffman.h,v 1.3 2007/09/20 03:30:06 michael Exp $
-*   $Log: huffman.h,v $
-*   Revision 1.3  2007/09/20 03:30:06  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.2  2004/06/15 13:37:59  michael
-*   Incorporate changes in chuffman.c.
-*
-*   Revision 1.1  2004/02/26 04:58:22  michael
-*   Initial revision.  Headers for encode/decode functions.
-*
-*
-****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2004, 2007 by
+* Copyright (C) 2004, 2007, 2014 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -51,26 +36,19 @@
 /***************************************************************************
 *                                CONSTANTS
 ***************************************************************************/
-#ifndef FALSE
-#define FALSE   0
-#endif
-
-#ifndef TRUE
-#define TRUE    1
-#endif
 
 /***************************************************************************
 *                               PROTOTYPES
 ***************************************************************************/
 
 /* traditional codes */
-int HuffmanShowTree(char *inFile, char *outFile);       /* dump codes */
-int HuffmanEncodeFile(char *inFile, char *outFile);     /* encode file */
-int HuffmanDecodeFile(char *inFile, char *outFile);     /* decode file */
+int HuffmanShowTree(FILE *inFile, FILE *outFile);       /* dump codes */
+int HuffmanEncodeFile(FILE *inFile, FILE *outFile);     /* encode file */
+int HuffmanDecodeFile(FILE *inFile, FILE *outFile);     /* decode file */
 
 /* canonical code */
-int CanonicalShowTree(char *inFile, char *outFile);      /* dump codes */
-int CanonicalEncodeFile(char *inFile, char *outFile);    /* encode file */
-int CanonicalDecodeFile(char *inFile, char *outFile);    /* decode file */
+int CanonicalShowTree(FILE *inFile, FILE *outFile);     /* dump codes */
+int CanonicalEncodeFile(FILE *inFile, FILE *outFile);   /* encode file */
+int CanonicalDecodeFile(FILE *inFile, FILE *outFile);   /* decode file */
 
 #endif /* _HUFFMAN_H_ */

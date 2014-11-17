@@ -7,44 +7,9 @@
 *   Date    : November 20, 2002
 *
 ****************************************************************************
-*   UPDATES
-*
-*   Date        Change
-*   10/21/03    Fixed one symbol file bug discovered by David A. Scott
-*   10/22/03    Corrected fix above to handle decodes of file containing
-*               multiples of just one symbol.
-*   11/20/03    Correcly handle codes up to 256 bits (the theoretical
-*               max).  With symbol counts being limited to 32 bits, 31
-*               bits will be the maximum code length.
-*
-*   $Id: huffman.c,v 1.9 2007/09/20 03:30:06 michael Exp $
-*   $Log: huffman.c,v $
-*   Revision 1.9  2007/09/20 03:30:06  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.8  2005/05/23 03:18:04  michael
-*   Moved internal routines and definitions common to both canonical and
-*   traditional Huffman coding so that they are only declared once.
-*
-*   Revision 1.7  2004/06/15 13:37:29  michael
-*   Change function names and make static functions to allow linkage with chuffman.
-*
-*   Revision 1.6  2004/02/26 04:55:04  michael
-*   Remove main(), allowing code to be generate linkable object file.
-*
-*   Revision 1.4  2004/01/13 15:49:45  michael
-*   Beautify header
-*
-*   Revision 1.3  2004/01/13 05:45:17  michael
-*   Use bit stream library.
-*
-*   Revision 1.2  2004/01/05 04:04:58  michael
-*   Use encoded EOF instead of counting characters.
-*
-****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2002-2005, 2007 by
+* Copyright (C) 2002-2005, 2007, 2014 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -69,6 +34,7 @@
 ***************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "huflocal.h"
 #include "huffman.h"
 #include "bitarray.h"
@@ -113,44 +79,41 @@ static int ReadHeader(huffman_node_t **ht, bit_file_t *bfp);
 *   Function   : HuffmanEncodeFile
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an encoded version of that file.
-*   Parameters : inFile - Name of file to encode
-*                outFile - Name of file to write a tree to
+*   Parameters : inFile - Open file pointer for file to encode (must be
+*                         rewindable).
+*                outFile - Open file pointer for file receiving encoded data
 *   Effects    : File is Huffman encoded
-*   Returned   : TRUE for success, otherwise FALSE.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.  Either way, inFile and outFile will
+*                be left open.
 ****************************************************************************/
-int HuffmanEncodeFile(char *inFile, char *outFile)
+int HuffmanEncodeFile(FILE *inFile, FILE *outFile)
 {
     huffman_node_t *huffmanTree;        /* root of huffman tree */
     code_list_t codeList[NUM_CHARS];    /* table for quick encode */
-    FILE *fpIn;
-    bit_file_t *bfpOut;
+    bit_file_t *bOutFile;
     int c;
 
-    /* open binary input file and bitfile output file */
-    if ((fpIn = fopen(inFile, "rb")) == NULL)
+    /* validate input and output files */
+    if ((NULL == inFile) || (NULL == outFile))
     {
-        perror(inFile);
-        return FALSE;
+        errno = ENOENT;
+        return -1;
     }
 
-    if (outFile == NULL)
+    bOutFile = MakeBitFile(outFile, BF_WRITE);
+
+    if (NULL == bOutFile)
     {
-        bfpOut = MakeBitFile(stdout, BF_WRITE);
-    }
-    else
-    {
-        if ((bfpOut = BitFileOpen(outFile, BF_WRITE)) == NULL)
-        {
-            perror(outFile);
-            fclose(fpIn);
-            return FALSE;
-        }
+        perror("Making Output File a BitFile");
+        return -1;
     }
 
     /* build tree */
-    if ((huffmanTree = GenerateTreeFromFile(fpIn)) == NULL)
+    if ((huffmanTree = GenerateTreeFromFile(inFile)) == NULL)
     {
-        return FALSE;
+        outFile = BitFileToFILE(bOutFile);
+        return -1;
     }
 
     /* build a list of codes for each symbol */
@@ -162,28 +125,29 @@ int HuffmanEncodeFile(char *inFile, char *outFile)
         codeList[c].codeLen = 0;
     }
 
-    if (!MakeCodeList(huffmanTree, codeList))
+    if (0 != MakeCodeList(huffmanTree, codeList))
     {
-        return FALSE;
+        outFile = BitFileToFILE(bOutFile);
+        return -1;
     }
 
     /* write out encoded file */
 
     /* write header for rebuilding of tree */
-    WriteHeader(huffmanTree, bfpOut);
+    WriteHeader(huffmanTree, bOutFile);
 
     /* read characters from file and write them to encoded file */
-    rewind(fpIn);               /* start another pass on the input file */
+    rewind(inFile);         /* start another pass on the input file */
 
-    while((c = fgetc(fpIn)) != EOF)
+    while((c = fgetc(inFile)) != EOF)
     {
-        BitFilePutBits(bfpOut,
+        BitFilePutBits(bOutFile,
             BitArrayGetBits(codeList[c].code),
             codeList[c].codeLen);
     }
 
     /* now write EOF */
-    BitFilePutBits(bfpOut,
+    BitFilePutBits(bOutFile,
         BitArrayGetBits(codeList[EOF_CHAR].code),
         codeList[EOF_CHAR].codeLen);
 
@@ -196,51 +160,45 @@ int HuffmanEncodeFile(char *inFile, char *outFile)
         }
     }
 
-
     /* clean up */
-    fclose(fpIn);
-    BitFileClose(bfpOut);
-    FreeHuffmanTree(huffmanTree);     /* free allocated memory */
+    outFile = BitFileToFILE(bOutFile);          /* make file normal again */
+    FreeHuffmanTree(huffmanTree);               /* free allocated memory */
 
-    return TRUE;
+    return 0;
 }
 
 /****************************************************************************
 *   Function   : HuffmanDecodeFile
 *   Description: This routine reads a Huffman coded file and writes out a
 *                decoded version of that file.
-*   Parameters : inFile - Name of file to decode
-*                outFile - Name of file to write a tree to
+*   Parameters : inFile - Open file pointer for file to decode
+*                outFile - Open file pointer for file receiving decoded data
 *   Effects    : Huffman encoded file is decoded
-*   Returned   : TRUE for success, otherwise FALSE.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.  Either way, inFile and outFile will
+*                be left open.
 ****************************************************************************/
-int HuffmanDecodeFile(char *inFile, char *outFile)
+int HuffmanDecodeFile(FILE *inFile, FILE *outFile)
 {
     huffman_node_t *huffmanArray[NUM_CHARS];    /* array of all leaves */
-    huffman_node_t *huffmanTree, *currentNode;
+    huffman_node_t *huffmanTree;
+    huffman_node_t *currentNode;
     int i, c;
-    bit_file_t *bfpIn;
-    FILE *fpOut;
+    bit_file_t *bInFile;
 
-    /* open binary output file and bitfile input file */
-    if ((bfpIn = BitFileOpen(inFile, BF_READ)) == NULL)
+    /* validate input and output files */
+    if ((NULL == inFile) || (NULL == outFile))
     {
-        perror(inFile);
-        return FALSE;
+        errno = ENOENT;
+        return -1;
     }
 
-    if (outFile == NULL)
+    bInFile = MakeBitFile(inFile, BF_READ);
+
+    if (NULL == bInFile)
     {
-        fpOut = stdout;
-    }
-    else
-    {
-        if ((fpOut = fopen(outFile, "wb")) == NULL)
-        {
-            BitFileClose(bfpIn);
-            perror(outFile);
-            return FALSE;
-        }
+        perror("Making Input File a BitFile");
+        return -1;
     }
 
     /* allocate array of leaves for all possible characters */
@@ -254,39 +212,35 @@ int HuffmanDecodeFile(char *inFile, char *outFile)
                 free(huffmanArray[i]);
             }
 
-            BitFileClose(bfpIn);
-            fclose(fpOut);
-            return FALSE;
+            inFile = BitFileToFILE(bInFile);
+            return -1;
         }
     }
 
     /* populate leaves with frequency information from file header */
-    if (!ReadHeader(huffmanArray, bfpIn))
+    if (0 != ReadHeader(huffmanArray, bInFile))
     {
         for (i = 0; i < NUM_CHARS; i++)
         {
             free(huffmanArray[i]);
         }
 
-        BitFileClose(bfpIn);
-        fclose(fpOut);
-        return FALSE;
+        inFile = BitFileToFILE(bInFile);
+        return -1;
     }
 
     /* put array of leaves into a huffman tree */
     if ((huffmanTree = BuildHuffmanTree(huffmanArray, NUM_CHARS)) == NULL)
     {
         FreeHuffmanTree(huffmanTree);
-
-        BitFileClose(bfpIn);
-        fclose(fpOut);
-        return FALSE;
+        inFile = BitFileToFILE(bInFile);
+        return -1;
     }
 
     /* now we should have a tree that matches the tree used on the encode */
     currentNode = huffmanTree;
 
-    while ((c = BitFileGetBit(bfpIn)) != EOF)
+    while ((c = BitFileGetBit(bInFile)) != EOF)
     {
         /* traverse the tree finding matches for our characters */
         if (c != 0)
@@ -307,17 +261,16 @@ int HuffmanDecodeFile(char *inFile, char *outFile)
                 break;
             }
 
-            fputc(currentNode->value, fpOut);   /* write out character */
+            fputc(currentNode->value, outFile); /* write out character */
             currentNode = huffmanTree;          /* back to top of tree */
         }
     }
 
-    /* close all files */
-    BitFileClose(bfpIn);
-    fclose(fpOut);
+    /* clean up */
+    inFile = BitFileToFILE(bInFile);            /* make file normal again */
     FreeHuffmanTree(huffmanTree);     /* free allocated memory */
 
-    return TRUE;
+    return 0;
 }
 
 /****************************************************************************
@@ -325,52 +278,37 @@ int HuffmanDecodeFile(char *inFile, char *outFile)
 *   Description: This routine genrates a huffman tree optimized for a file
 *                and writes out an ASCII representation of the code
 *                represented by the tree.
-*   Parameters : inFile - Name of file to create tree for
-*                outFile - Name of file to write a tree to
+*   Parameters : inFile - Open file pointer for file to create the tree for
+*                outFile - Open file pointer for file to write the tree to
 *   Effects    : Huffman tree is written out to a file
-*   Returned   : TRUE for success, otherwise FALSE.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.  Either way, inFile and outFile will
+*                be left open.
 ****************************************************************************/
-int HuffmanShowTree(char *inFile, char *outFile)
+int HuffmanShowTree(FILE *inFile, FILE *outFile)
 {
-    FILE *fpIn, *fpOut;
     huffman_node_t *huffmanTree;        /* root of huffman tree */
     huffman_node_t *htp;                /* pointer into tree */
     char code[NUM_CHARS - 1];           /* 1s and 0s in character's code */
     int depth = 0;                      /* depth of tree */
 
-    /* open binary input and output files */
-    if ((fpIn = fopen(inFile, "rb")) == NULL)
+    /* validate input and output files */
+    if ((NULL == inFile) || (NULL == outFile))
     {
-        perror(inFile);
-        return FALSE;
-    }
-
-    if (outFile == NULL)
-    {
-        fpOut = stdout;
-    }
-    else
-    {
-        if ((fpOut = fopen(outFile, "w")) == NULL)
-        {
-            perror(outFile);
-            fclose(fpIn);
-            return FALSE;
-        }
+        errno = ENOENT;
+        return -1;
     }
 
     /* build tree */
-    if ((huffmanTree = GenerateTreeFromFile(fpIn)) == NULL)
+    if ((huffmanTree = GenerateTreeFromFile(inFile)) == NULL)
     {
-        fclose(fpIn);
-        fclose(fpOut);
-        return FALSE;
+        return -1;
     }
 
     /* write out tree */
     /* print heading to make things look pretty (int is 10 char max) */
-    fprintf(fpOut, "Char  Count      Encoding\n");
-    fprintf(fpOut, "----- ---------- ----------------\n");
+    fprintf(outFile, "Char  Count      Encoding\n");
+    fprintf(outFile, "----- ---------- ----------------\n");
 
     htp = huffmanTree;
     for(;;)
@@ -397,12 +335,12 @@ int HuffmanShowTree(char *inFile, char *outFile)
 
             if (htp->value != EOF_CHAR)
             {
-                fprintf(fpOut, "0x%02X  %10d %s\n",
+                fprintf(outFile, "0x%02X  %10d %s\n",
                     htp->value, htp->count, code);
             }
             else
             {
-                fprintf(fpOut, "EOF   %10d %s\n", htp->count, code);
+                fprintf(outFile, "EOF   %10d %s\n", htp->count, code);
             }
         }
 
@@ -432,34 +370,33 @@ int HuffmanShowTree(char *inFile, char *outFile)
     }
 
     /* clean up */
-    fclose(fpIn);
-    fclose(fpOut);
     FreeHuffmanTree(huffmanTree);     /* free allocated memory */
 
-    return TRUE;
+    return 0;
 }
 
 /****************************************************************************
 *   Function   : MakeCodeList
 *   Description: This function uses a huffman tree to build a list of codes
 *                and their length for each encoded symbol.  This simplifies
-*                the encoding process.  Instead of traversing a tree to
-*                in search of the code for any symbol, the code maybe found
-*                by accessing cl[symbol].code.
+*                the encoding process.  Instead of traversing a tree in
+*                search of the code for any symbol, the code maybe found
+*                by accessing codeList[symbol].code.
 *   Parameters : ht - pointer to root of huffman tree
 *                codeList - code list to populate.
 *   Effects    : Code values are filled in for symbols in a code list.
-*   Returned   : TRUE for success, FALSE for failure
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ****************************************************************************/
 static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
 {
     bit_array_t *code;
     byte_t depth = 0;
 
-    if((code = BitArrayCreate(256)) == NULL)
+    if((code = BitArrayCreate(EOF_CHAR)) == NULL)
     {
         perror("Unable to allocate bit array");
-        return (FALSE);
+        return -1;
     }
 
     BitArrayClearAll(code);
@@ -483,11 +420,11 @@ static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
             {
                 perror("Unable to allocate bit array");
                 BitArrayDestroy(code);
-                return (FALSE);
+                return -1;
             }
 
             /* now left justify code */
-            BitArrayShiftLeft(codeList[ht->value].code, 256 - depth);
+            BitArrayShiftLeft(codeList[ht->value].code, EOF_CHAR - depth);
         }
 
         while (ht->parent != NULL)
@@ -495,7 +432,7 @@ static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
             if (ht != ht->parent->right)
             {
                 /* try the parent's right */
-                BitArraySetBit(code, 255);
+                BitArraySetBit(code, (EOF_CHAR - 1));
                 ht = ht->parent->right;
                 break;
             }
@@ -516,7 +453,7 @@ static int MakeCodeList(huffman_node_t *ht, code_list_t *codeList)
     }
 
     BitArrayDestroy(code);
-    return (TRUE);
+    return 0;
 }
 
 /****************************************************************************
@@ -589,13 +526,14 @@ static void WriteHeader(huffman_node_t *ht, bit_file_t *bfp)
 *   Parameters : ht - pointer to array of pointers to tree leaves
 *                inFile - file to read from
 *   Effects    : Frequency information is read into the node of ht
-*   Returned   : TRUE for success, otherwise FALSE
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ****************************************************************************/
 static int ReadHeader(huffman_node_t **ht, bit_file_t *bfp)
 {
     count_t count;
     int c;
-    int status = FALSE;     /* in case of premature EOF */
+    int status = -1;        /* in case of premature EOF */
 
     while ((c = BitFileGetChar(bfp)) != EOF)
     {
@@ -604,22 +542,23 @@ static int ReadHeader(huffman_node_t **ht, bit_file_t *bfp)
         if ((count == 0) && (c == 0))
         {
             /* we just read end of table marker */
-            status = TRUE;
+            status = 0;
             break;
         }
 
         ht[c]->count = count;
-        ht[c]->ignore = FALSE;
+        ht[c]->ignore = 0;
     }
 
     /* add assumed EOF */
     ht[EOF_CHAR]->count = 1;
-    ht[EOF_CHAR]->ignore = FALSE;
+    ht[EOF_CHAR]->ignore = 0;
 
-    if (status == FALSE)
+    if (0 != status)
     {
         /* we hit EOF before we read a full header */
         fprintf(stderr, "error: malformed file header.\n");
+        errno = EILSEQ;     /* Illegal byte sequence seems reasonable */
     }
 
     return status;

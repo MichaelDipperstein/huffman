@@ -8,22 +8,9 @@
 *   Date    : May 21, 2005
 *
 ****************************************************************************
-*   UPDATES
-*
-*   $Id: huflocal.h,v 1.2 2007/09/20 03:30:06 michael Exp $
-*   $Log: huflocal.h,v $
-*   Revision 1.2  2007/09/20 03:30:06  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.1  2005/05/23 03:18:04  michael
-*   Moved internal routines and definitions common to both canonical and
-*   traditional Huffman coding so that they are only declared once.
-*
-*
-****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2005, 2007 by
+* Copyright (C) 2005, 2007, 2014 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -90,7 +77,7 @@ typedef struct huffman_node_t
 #define COUNT_T_MAX     UINT_MAX    /* based on count_t being unsigned int */
 
 #define COMPOSITE_NODE      -1      /* node represents multiple characters */
-#define NUM_CHARS           257     /* 256 bytes + EOF */
+#define NUM_CHARS   (UCHAR_MAX + 2) /* Add an extra char for EOF */
 #define EOF_CHAR    (NUM_CHARS - 1) /* index used for EOF */
 
 /***************************************************************************

@@ -1,29 +1,16 @@
 /***************************************************************************
 *                Common Huffman Encoding and Decoding Header
 *
-*   File    : huflocal.h
+*   File    : huflocal.c
 *   Purpose : Common functions used in Huffman library, but not used by
 *             caller of public Huffman library functions.
 *   Author  : Michael Dipperstein
 *   Date    : May 21, 2005
 *
 ****************************************************************************
-*   UPDATES
-*
-*   $Id: huflocal.c,v 1.2 2007/09/20 03:30:06 michael Exp $
-*   $Log: huflocal.c,v $
-*   Revision 1.2  2007/09/20 03:30:06  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.1  2005/05/23 03:18:04  michael
-*   Moved internal routines and definitions common to both canonical and
-*   traditional Huffman coding so that they are only declared once.
-*
-*
-****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2005, 2007 by
+* Copyright (C) 2005, 2007, 2014 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -105,7 +92,7 @@ huffman_node_t *GenerateTreeFromFile(FILE *inFile)
 
     /* assume that there will be exactly 1 EOF */
     huffmanArray[EOF_CHAR]->count = 1;
-    huffmanArray[EOF_CHAR]->ignore = FALSE;
+    huffmanArray[EOF_CHAR]->ignore = 0;
 
     /* count occurrence of each character */
     while ((c = fgetc(inFile)) != EOF)
@@ -114,7 +101,7 @@ huffman_node_t *GenerateTreeFromFile(FILE *inFile)
         {
             /* increment count for character and include in tree */
             huffmanArray[c]->count++;
-            huffmanArray[c]->ignore = FALSE;
+            huffmanArray[c]->ignore = 0;
         }
         else
         {
@@ -147,7 +134,7 @@ huffman_node_t *AllocHuffmanNode(int value)
     if (ht != NULL)
     {
         ht->value = value;
-        ht->ignore = TRUE;      /* will be FALSE if one is found */
+        ht->ignore = 1;         /* will be 0 if one is found */
 
         /* at this point, the node is not part of a tree */
         ht->count = 0;
@@ -185,7 +172,7 @@ static huffman_node_t *AllocHuffmanCompositeNode(huffman_node_t *left,
     if (ht != NULL)
     {
         ht->value = COMPOSITE_NODE;     /* represents multiple chars */
-        ht->ignore = FALSE;
+        ht->ignore = 0;
         ht->count = left->count + right->count;     /* sum of children */
         ht->level = max(left->level, right->level) + 1;
 
@@ -232,7 +219,7 @@ void FreeHuffmanTree(huffman_node_t *ht)
 /****************************************************************************
 *   Function   : FindMinimumCount
 *   Description: This function searches an array of HUFFMAN_STRCUT to find
-*                the active (ignore == FALSE) element with the smallest
+*                the active (ignore == 0) element with the smallest
 *                frequency count.  In order to keep the tree shallow, if two
 *                nodes have the same count, the node with the lower level
 *                selected.
@@ -295,7 +282,7 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
             break;
         }
 
-        ht[min1]->ignore = TRUE;    /* remove from consideration */
+        ht[min1]->ignore = 1;       /* remove from consideration */
 
         /* find node with second lowest count */
         min2 = FindMinimumCount(ht, elements);
@@ -306,7 +293,7 @@ huffman_node_t *BuildHuffmanTree(huffman_node_t **ht, int elements)
             break;
         }
 
-        ht[min2]->ignore = TRUE;    /* remove from consideration */
+        ht[min2]->ignore = 1;       /* remove from consideration */
 
         /* combine nodes into a tree */
         if ((ht[min1] = AllocHuffmanCompositeNode(ht[min1], ht[min2])) == NULL)

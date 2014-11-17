@@ -8,26 +8,9 @@
 *   Date    : February 25, 2004
 *
 ****************************************************************************
-*   UPDATES
-*
-*   $Id: sample.c,v 1.3 2007/09/20 03:30:30 michael Exp $
-*   $Log: sample.c,v $
-*   Revision 1.3  2007/09/20 03:30:30  michael
-*   Replace getopt with optlist.
-*   Changes required for LGPL v3.
-*
-*   Revision 1.2  2004/06/15 13:40:28  michael
-*   Add -C option for canonical.
-*   Handle both traditional and canonical codes.
-*   Correct file name in help.
-*
-*   Revision 1.1  2004/02/26 04:57:32  michael
-*   Initial revision.  Library usage sample.
-*
-****************************************************************************
 *
 * sample: An ANSI C Huffman Encoding/Decoding Library Examples
-* Copyright (C) 2004, 2007 by
+* Copyright (C) 2004, 2007, 2014 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -53,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "huffman.h"
 #include "optlist.h"
 
@@ -68,8 +52,9 @@ typedef enum
 } mode_t;
 
 /***************************************************************************
-*                                CONSTANTS
+*                               PROTOTYPES
 ***************************************************************************/
+static void ShowUsage(FILE *stream, char *progPath);
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -83,15 +68,14 @@ typedef enum
 *                decode a huffman encoded file.
 *   Parameters : argc - number of parameters
 *                argv - parameter list
-*   Effects    : Builds a huffman tree for specified file and outputs
-*                resulting code to stdout.
-*   Returned   : EXIT_SUCCESS for success, otherwise EXIT_FAILURE.
+*   Effects    : Creates specified file from specified inputs
+*   Returned   : 0 for success, otherwise errno.
 ****************************************************************************/
 int main (int argc, char *argv[])
 {
     int status, canonical;
     option_t *optList, *thisOpt;
-    char *inFile, *outFile;
+    FILE *inFile, *outFile;
     mode_t mode;
 
     /* initialize variables */
@@ -109,7 +93,7 @@ int main (int argc, char *argv[])
         switch(thisOpt->option)
         {
             case 'C':       /* use canonical code */
-                canonical = TRUE;
+                canonical = 1;
                 break;
 
             case 'c':       /* compression mode */
@@ -128,79 +112,63 @@ int main (int argc, char *argv[])
                 if (inFile != NULL)
                 {
                     fprintf(stderr, "Multiple input files not allowed.\n");
-                    free(inFile);
+                    fclose(inFile);
 
                     if (outFile != NULL)
                     {
-                        free(outFile);
+                        fclose(outFile);
                     }
 
                     FreeOptList(optList);
-                    exit(EXIT_FAILURE);
+                    return EINVAL;
                 }
-                else if ((inFile =
-                    (char *)malloc(strlen(thisOpt->argument) + 1)) == NULL)
+                else if ((inFile = fopen(thisOpt->argument, "rb")) == NULL)
                 {
-                    perror("Memory allocation");
+                    perror("Opening Input File");
 
                     if (outFile != NULL)
                     {
-                        free(outFile);
+                        fclose(outFile);
                     }
 
                     FreeOptList(optList);
-                    exit(EXIT_FAILURE);
+                    return errno;
                 }
-
-                strcpy(inFile, thisOpt->argument);
                 break;
 
             case 'o':       /* output file name */
                 if (outFile != NULL)
                 {
                     fprintf(stderr, "Multiple output files not allowed.\n");
-                    free(outFile);
+                    fclose(outFile);
 
                     if (inFile != NULL)
                     {
-                        free(inFile);
+                        fclose(inFile);
                     }
 
                     FreeOptList(optList);
-                    exit(EXIT_FAILURE);
+                    return EINVAL;
                 }
-                else if ((outFile =
-                    (char *)malloc(strlen(thisOpt->argument) + 1)) == NULL)
+                else if ((outFile = fopen(thisOpt->argument, "wb")) == NULL)
                 {
-                    perror("Memory allocation");
+                    perror("Opening Output File");
 
                     if (inFile != NULL)
                     {
-                        free(inFile);
+                        fclose(inFile);
                     }
 
                     FreeOptList(optList);
-                    exit(EXIT_FAILURE);
+                    return errno;
                 }
-
-                strcpy(outFile, thisOpt->argument);
                 break;
 
             case 'h':
             case '?':
-                printf("Usage: sample <options>\n\n");
-                printf("options:\n");
-                printf("  -C : Encode/Decode using a canonical code.\n");
-                printf("  -c : Encode input file to output file.\n");
-                printf("  -d : Decode input file to output file.\n");
-                printf("  -t : Generate code tree for input file to output file.\n");
-                printf("  -i<filename> : Name of input file.\n");
-                printf("  -o<filename> : Name of output file.\n");
-                printf("  -h|?  : Print out command line options.\n\n");
-                printf("Default: huffman -t -ostdout\n");
-
+                ShowUsage(stdout, argv[0]);
                 FreeOptList(optList);
-                return(EXIT_SUCCESS);
+                return 0;
         }
 
         optList = thisOpt->next;
@@ -209,11 +177,11 @@ int main (int argc, char *argv[])
     }
 
     /* validate command line */
-    if (inFile == NULL)
+    if ((inFile == NULL) || (outFile == NULL))
     {
-        fprintf(stderr, "Input file must be provided\n");
-        fprintf(stderr, "Enter \"sample -?\" for help.\n");
-        exit (EXIT_FAILURE);
+        fprintf(stderr, "Input and output files must be provided\n\n");
+        ShowUsage(stderr, argv[0]);
+        return EINVAL;
     }
 
     /* execute selected function */
@@ -258,18 +226,40 @@ int main (int argc, char *argv[])
     }
 
     /* clean up*/
-    free(inFile);
-    if (outFile != NULL)
-    {
-        free(outFile);
-    }
+    fclose(inFile);
+    fclose(outFile);
 
-    if (status)
+    if (0 == status)
     {
-        return (EXIT_SUCCESS);
+        return 0;
     }
     else
     {
-        return (EXIT_FAILURE);
+        perror("");
+        return errno;
     }
+}
+
+/****************************************************************************
+*   Function   : ShowUsage
+*   Description: This function sends instructions for using this program to
+*                stdout.
+*   Parameters : progPath - the name + path to the executable version of this
+*                           program.
+*                stream - output stream receiving instructions.
+*   Effects    : Usage instructions are sent to stream.
+*   Returned   : None
+****************************************************************************/
+static void ShowUsage(FILE *stream, char *progPath)
+{
+    fprintf(stream, "Usage: %s <options>\n\n", FindFileName(progPath));
+    fprintf(stream, "options:\n");
+    fprintf(stream, "  -C : Encode/Decode using a canonical code.\n");
+    fprintf(stream, "  -c : Encode input file to output file.\n");
+    fprintf(stream, "  -d : Decode input file to output file.\n");
+    fprintf(stream,
+        "  -t : Generate code tree for input file to output file.\n");
+    fprintf(stream, "  -i<filename> : Name of input file.\n");
+    fprintf(stream, "  -o<filename> : Name of output file.\n");
+    fprintf(stream, "  -h|?  : Print out command line options.\n\n");
 }
