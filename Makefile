@@ -1,14 +1,9 @@
 ############################################################################
-# Makefile for bitarray library and sample
-#
-#   $Id: Makefile,v 1.2 2007/07/16 01:55:50 michael Exp $
-#   $Log: Makefile,v $
-#   Revision 1.2  2007/07/16 01:55:50  michael
-#   Use -pedantic when compiling.
-#
-#   Revision 1.1.1.1  2004/02/09 04:15:45  michael
-#   Initial release
-#
+# Makefile for bit array library and sample program
+# arguements:
+#	No argument			Build everything
+#	DEBUG=1				Build with debugging output and symbols
+#	clean				Delete all compiled/linked output
 #
 ############################################################################
 
@@ -27,7 +22,14 @@ ifeq ($(OS),Windows)
 	DEL = del
 else    #assume Linux/Unix
 	EXE =
-	DEL = rm
+	DEL = rm -f
+endif
+
+# Handle debug/no debug
+ifneq ($(DEBUG), 1)
+	CFLAGS += -DNDEBUG
+else
+	CFLAGS += -g
 endif
 
 all:	sample$(EXE)

@@ -24,25 +24,10 @@
 *   Date    : January 30, 2004
 *
 ****************************************************************************
-*   HISTORY
-*
-*   $Id: bitarray.c,v 1.3 2007/08/26 21:20:20 michael Exp $
-*   $Log: bitarray.c,v $
-*   Revision 1.3  2007/08/26 21:20:20  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.2  2006/02/08 13:53:21  michael
-*   Applied Petr Kobalicek's <kobalicek.petr@gmail.com> fix for handling
-*   array memory allocation failures.
-*
-*   Revision 1.1.1.1  2004/02/09 04:15:45  michael
-*   Initial release
-*
-*
-****************************************************************************
 *
 * Bitarray: An ANSI C library for manipulating arbitrary length bit arrays
-* Copyright (C) 2004, 2006-2007 by Michael Dipperstein (mdipper@cs.ucsb.edu)
+* Copyright (C) 2004, 2006-2007, 2014 by
+*   Michael Dipperstein (mdipper@cs.ucsb.edu)
 *
 * This file is part of the bit array library.
 *
@@ -114,15 +99,16 @@ struct bit_array_t
 *   Parameters : bits - the number of bits in the array to be allocated.
 *   Effects    : allocates bit array from heap, or sets errno on failure.
 *   Returned   : pointer to allocated bit array or NULL if array may not
-*                be allocated.
+*                be allocated.  errno will be set in the event that the
+*                array may not be allocated.
 ***************************************************************************/
-bit_array_t *BitArrayCreate(unsigned int bits)
+bit_array_t *BitArrayCreate(const unsigned int bits)
 {
     bit_array_t *ba;
 
     if (0 == bits)
     {
-        errno = EINVAL;
+        errno = EDOM;
         return NULL;
     }
 
@@ -151,7 +137,7 @@ bit_array_t *BitArrayCreate(unsigned int bits)
         }
     }
 
-    return(ba);
+    return ba;
 }
 
 /***************************************************************************
@@ -186,7 +172,7 @@ void BitArrayDestroy(bit_array_t *ba)
 *   Returned   : None
 *   NOTE: This function only works with 8 bit characters.
 ***************************************************************************/
-void BitArrayDump(bit_array_t *ba, FILE *outFile)
+void BitArrayDump(const bit_array_t *const ba, FILE *outFile)
 {
     unsigned i;
 
@@ -221,9 +207,9 @@ void BitArrayDump(bit_array_t *ba, FILE *outFile)
 *                Unused (spare) bits are set to 0.
 *   Returned   : NONE
 ***************************************************************************/
-void BitArraySetAll(bit_array_t *ba)
+void BitArraySetAll(const bit_array_t *const ba)
 {
-    int bits;
+    unsigned bits;
     unsigned char mask;
 
     if (ba == NULL)
@@ -251,7 +237,7 @@ void BitArraySetAll(bit_array_t *ba)
 *   Effects    : Each of the bits used in the bit array are set to 0.
 *   Returned   : NONE
 ***************************************************************************/
-void BitArrayClearAll(bit_array_t *ba)
+void BitArrayClearAll(const bit_array_t *const ba)
 {
     if (ba == NULL)
     {
@@ -269,21 +255,24 @@ void BitArrayClearAll(bit_array_t *ba)
 *   Parameters : ba - pointer to bit array
 *                bit - bit to set
 *   Effects    : The specified bit in the bit array is set to 1.
-*   Returned   : NONE
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArraySetBit(bit_array_t *ba, unsigned int bit)
+int BitArraySetBit(const bit_array_t *const ba, const unsigned int bit)
 {
     if (ba == NULL)
     {
-        return;         /* no bit to set */
+        return 0;       /* no bit to set */
     }
 
     if (ba->numBits <= bit)
     {
-        return;         /* bit out of range */
+        errno = ERANGE;
+        return -1;      /* bit out of range */
     }
 
     ba->array[BIT_CHAR(bit)] |= BIT_IN_CHAR(bit);
+    return 0;
 }
 
 /***************************************************************************
@@ -293,20 +282,22 @@ void BitArraySetBit(bit_array_t *ba, unsigned int bit)
 *   Parameters : ba - pointer to bit array
 *                bit - bit to clear
 *   Effects    : The specified bit in the bit array is set to 0.
-*   Returned   : NONE
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayClearBit(bit_array_t *ba, unsigned int bit)
+int BitArrayClearBit(const bit_array_t *const ba, const unsigned int bit)
 {
     unsigned char mask;
 
     if (ba == NULL)
     {
-        return;         /* no bit to clear */
+        return 0;       /* no bit to set */
     }
 
     if (ba->numBits <= bit)
     {
-        return;         /* bit out of range */
+        errno = ERANGE;
+        return -1;      /* bit out of range */
     }
 
     /* create a mask to zero out desired bit */
@@ -314,6 +305,7 @@ void BitArrayClearBit(bit_array_t *ba, unsigned int bit)
     mask = ~mask;
 
     ba->array[BIT_CHAR(bit)] &= mask;
+    return 0;
 }
 
 /***************************************************************************
@@ -326,8 +318,13 @@ void BitArrayClearBit(bit_array_t *ba, unsigned int bit)
 *   Effects    : None
 *   Returned   : Pointer to array containing bits
 ***************************************************************************/
-void *BitArrayGetBits(bit_array_t *ba)
+void *BitArrayGetBits(const bit_array_t *const ba)
 {
+    if (NULL == ba)
+    {
+        return NULL;
+    }
+
     return ((void *)(ba->array));
 }
 
@@ -344,7 +341,7 @@ void *BitArrayGetBits(bit_array_t *ba)
 *                not check the input.  Tests on invalid input will produce
 *                unknown results.
 ***************************************************************************/
-int BitArrayTestBit(bit_array_t *ba, unsigned int bit)
+int BitArrayTestBit(const bit_array_t *const ba, const unsigned int bit)
 {
     return((ba->array[BIT_CHAR(bit)] & BIT_IN_CHAR(bit)) != 0);
 }
@@ -353,33 +350,34 @@ int BitArrayTestBit(bit_array_t *ba, unsigned int bit)
 *   Function   : BitArrayCopy
 *   Description: This function copies the contents of a source bit array
 *                into the destination.  If the two arrays are not the same
-*                size, a copy will not take place.
+*                size or either array pointer is NULL, a copy will not take
+*                place and errno will be set to EPERM.
 *   Parameters : dest - pointer to destination bit array
 *                src - pointer to source bit array
 *   Effects    : The contents of the source bit array are copied to the
 *                destination bit array.
-*   Returned   : None
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayCopy(bit_array_t *dest, const bit_array_t *src)
+int BitArrayCopy(const bit_array_t *const dest, const bit_array_t *const src)
 {
-    if (src == NULL)
+    if ((NULL == src) || (NULL == dest))
     {
-        return;         /* no source array */
-    }
-
-    if (dest == NULL)
-    {
-        return;         /* no destination array */
+        errno = EPERM;
+        return -1;      /* no source array */
     }
 
     if (src->numBits != dest->numBits)
     {
-        return;         /* source and destination are not the same size */
+        errno = EPERM;
+        return -1;      /* source and destination are not the same size */
     }
 
     /* copy source to destination */
     memcpy((void *)(dest->array), (void *)(src->array),
         BITS_TO_CHARS(src->numBits));
+
+    return 0;
 }
 
 /***************************************************************************
@@ -389,14 +387,17 @@ void BitArrayCopy(bit_array_t *dest, const bit_array_t *src)
 *                duplicate.
 *   Parameters : src - pointer to bit array to be duplicated
 *   Effects    : A duplicate of the source bit array is created.
-*   Returned   : Pointer to duplicate of source or NULL on failure.
+*   Returned   : Pointer to duplicate of source or NULL on failure.  errno
+*                will be set in the event that the array may not be
+*                duplicated.
 ***************************************************************************/
-bit_array_t *BitArrayDuplicate(const bit_array_t *src)
+bit_array_t *BitArrayDuplicate(const bit_array_t *const src)
 {
     bit_array_t *ba;
 
     if (src == NULL)
     {
+        errno = EPERM;
         return NULL;    /* no source array */
     }
 
@@ -411,49 +412,49 @@ bit_array_t *BitArrayDuplicate(const bit_array_t *src)
     return ba;
 }
 
+int ValidateArgs(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2)
+{
+    if ((NULL == src1) || (NULL == src2) || (NULL == dest))
+    {
+        errno = EPERM;
+        return -1;      /* NULL source(s) and/or destination */
+    }
+
+    if ((src1->numBits != dest->numBits) || (src2->numBits != dest->numBits))
+    {
+        errno = EPERM;
+        return -1;      /* source(s) and/or size mismatch */
+    }
+
+    return 0;
+}
+
 /***************************************************************************
 *   Function   : BitArrayAnd
 *   Description: This function performs a bitwise AND between two bit
 *                arrays, storing the results in a third bit array.  If the
-*                arrays are NULL or different in size, no operation will
+*                arrays are NULL or different sizes, no operation will
 *                will occur.
 *   Parameters : dest - pointer to destination bit array
 *                src1 - pointer to first source bit array
 *                src2 - pointer to second source bit array
 *   Effects    : dest will contain the results of a bitwise AND of src1 and
 *                src2 unless one array pointer is NULL or arrays are
-*                different in size.
-*   Returned   : NONE
+*                different sizes.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayAnd(bit_array_t *dest,
-                 const bit_array_t *src1,
-                 const bit_array_t *src2)
+int BitArrayAnd(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2)
 {
     unsigned i;
 
-    if (src1 == NULL)
+    if (0 != ValidateArgs(dest, src1, src2))
     {
-        return;         /* no source array */
-    }
-
-    if (src2 == NULL)
-    {
-        return;         /* no source array */
-    }
-
-    if (dest == NULL)
-    {
-        return;         /* no destination array */
-    }
-
-    if (src1->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
-    }
-
-    if (src2->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
+        return -1;
     }
 
     /* AND array one unsigned char at a time */
@@ -461,51 +462,34 @@ void BitArrayAnd(bit_array_t *dest,
     {
         dest->array[i] = src1->array[i] & src2->array[i];
     }
+
+    return 0;
 }
 
 /***************************************************************************
 *   Function   : BitArrayOr
 *   Description: This function performs a bitwise OR between two bit
 *                arrays, storing the results in a third bit array.  If the
-*                arrays are NULL or different in size, no operation will
+*                arrays are NULL or different sizes, no operation will
 *                will occur.
 *   Parameters : dest - pointer to destination bit array
 *                src1 - pointer to first source bit array
 *                src2 - pointer to second source bit array
 *   Effects    : dest will contain the results of a bitwise OR of src1 and
 *                src2 unless one array pointer is NULL or arrays are
-*                different in size.
-*   Returned   : NONE
+*                different sizes.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayOr(bit_array_t *dest,
-           const bit_array_t *src1,
-           const bit_array_t *src2)
+int BitArrayOr(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2)
 {
     unsigned i;
 
-    if (src1 == NULL)
+    if (0 != ValidateArgs(dest, src1, src2))
     {
-        return;         /* no source array */
-    }
-
-    if (src2 == NULL)
-    {
-        return;         /* no source array */
-    }
-
-    if (dest == NULL)
-    {
-        return;         /* no destination array */
-    }
-
-    if (src1->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
-    }
-
-    if (src2->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
+        return -1;
     }
 
     /* OR array one unsigned char at a time */
@@ -513,51 +497,34 @@ void BitArrayOr(bit_array_t *dest,
     {
         dest->array[i] = src1->array[i] | src2->array[i];
     }
+
+    return 0;
 }
 
 /***************************************************************************
 *   Function   : BitArrayXor
 *   Description: This function performs a bitwise XOR between two bit
 *                arrays, storing the results in a third bit array.  If the
-*                arrays are NULL or different in size, no operation will
+*                arrays are NULL or different sizes, no operation will
 *                will occur.
 *   Parameters : dest - pointer to destination bit array
 *                src1 - pointer to first source bit array
 *                src2 - pointer to second source bit array
 *   Effects    : dest will contain the results of a bitwise XOR of src1 and
 *                src2 unless one array pointer is NULL or arrays are
-*                different in size.
-*   Returned   : NONE
+*                different sizes.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayXor(bit_array_t *dest,
-            const bit_array_t *src1,
-            const bit_array_t *src2)
+int BitArrayXor(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2)
 {
     unsigned i;
 
-    if (src1 == NULL)
+    if (0 != ValidateArgs(dest, src1, src2))
     {
-        return;         /* no source array */
-    }
-
-    if (src2 == NULL)
-    {
-        return;         /* no source array */
-    }
-
-    if (dest == NULL)
-    {
-        return;         /* no destination array */
-    }
-
-    if (src1->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
-    }
-
-    if (src2->numBits != dest->numBits)
-    {
-        return;         /* size mismatch */
+        return -1;
     }
 
     /* XOR array one unsigned char at a time */
@@ -565,41 +532,40 @@ void BitArrayXor(bit_array_t *dest,
     {
         dest->array[i] = src1->array[i] ^ src2->array[i];
     }
+
+    return 0;
 }
 
 /***************************************************************************
 *   Function   : BitArrayNot
-*   Description: This function performs a bitwise NOT between two bit
-*                arrays, storing the results in a third bit array.  If the
-*                arrays are NULL or different in size, no operation will
-*                will occur.
+*   Description: This function performs a bitwise NOT of one bit array
+*                storing the results in another bit array.  If the arrays
+*                are NULL or different sizes, no operation will will occur.
 *   Parameters : dest - pointer to destination bit array
-*                src1 - pointer to first source bit array
-*                src2 - pointer to second source bit array
-*   Effects    : dest will contain the results of a bitwise XOR of src1 and
-*                src2 unless one array pointer is NULL or arrays are
-*                different in size.
-*   Returned   : NONE
+*                src - pointer to source bit array
+*   Effects    : dest will contain the results of a bitwise NOT of src
+*                unless one array pointer is NULL or arrays are different
+*                sizes.
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayNot(bit_array_t *dest,
-            const bit_array_t *src)
+int BitArrayNot(const bit_array_t *const dest,
+    const bit_array_t *const src)
 {
-    unsigned i, bits;
+    unsigned i;
+    unsigned bits;
     unsigned char mask;
 
-    if (src == NULL)
+    if ((NULL == src) || (NULL == dest))
     {
-        return;         /* no source array */
-    }
-
-    if (dest == NULL)
-    {
-        return;         /* no destination array */
+        errno = EPERM;
+        return -1;      /* NULL source and/or destination */
     }
 
     if (src->numBits != dest->numBits)
     {
-        return;         /* size mismatch */
+        errno = EPERM;
+        return -1;      /* size mismatch */
     }
 
     /* NOT array one unsigned char at a time */
@@ -615,6 +581,8 @@ void BitArrayNot(bit_array_t *dest,
         mask = UCHAR_MAX << (CHAR_BIT - bits);
         dest->array[BIT_CHAR(dest->numBits - 1)] &= mask;
     }
+
+    return 0;
 }
 
 /***************************************************************************
@@ -626,30 +594,33 @@ void BitArrayNot(bit_array_t *dest,
 *                shifts - number of bits to shift by.
 *   Effects    : The bit array data pointed to by ba is shifted to the left.
 *                New bits shifted in will be set to 0.
-*   Returned   : None
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
+int BitArrayShiftLeft(const bit_array_t *const ba, unsigned int shifts)
 {
-    unsigned i, j;
-    int chars;
+    unsigned i;
+    unsigned j;
+    unsigned chars;
 
-    chars = shifts / CHAR_BIT;  /* number of whole byte shifts */
-    shifts = shifts % CHAR_BIT;     /* number of bit shifts remaining */
-
-    if (ba == NULL)
+    if (NULL == ba)
     {
-        return;         /* nothing to shift */
+        errno = EPERM;
+        return -1;      /* not permitted on NULL array */
     }
+
+    chars = shifts / CHAR_BIT;      /* number of whole byte shifts */
+    shifts = shifts % CHAR_BIT;     /* number of bit shifts remaining */
 
     if (shifts >= ba->numBits)
     {
         /* all bits have been shifted off */
         BitArrayClearAll(ba);
-        return;
+        return 0;
     }
 
     /* first handle big jumps of bytes */
-    if (chars > 0)
+    if (chars != 0)
     {
         for (i = 0; (i + chars) <  BITS_TO_CHARS(ba->numBits); i++)
         {
@@ -657,7 +628,7 @@ void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
         }
 
         /* now zero out new bytes on the right */
-        for (i = BITS_TO_CHARS(ba->numBits); chars > 0; chars--)
+        for (i = BITS_TO_CHARS(ba->numBits); chars != 0; chars--)
         {
             ba->array[i - chars] = 0;
         }
@@ -679,6 +650,8 @@ void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
 
         ba->array[BIT_CHAR(ba->numBits - 1)] <<= 1;
     }
+
+    return 0;
 }
 
 /***************************************************************************
@@ -690,27 +663,30 @@ void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts)
 *                shifts - number of bits to shift by.
 *   Effects    : The bit array data pointed to by ba is shifted to the
 *                right.  New bits shifted in will be set to 0.
-*   Returned   : None
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts)
+int BitArrayShiftRight(const bit_array_t *const ba, unsigned int shifts)
 {
-    unsigned i, j;
+    unsigned i;
+    unsigned j;
     unsigned char mask;
     unsigned chars;
 
+    if (NULL == ba)
+    {
+        errno = EPERM;
+        return -1;      /* not permitted on NULL array */
+    }
+
     chars = shifts / CHAR_BIT;      /* number of whole byte shifts */
     shifts = shifts % CHAR_BIT;     /* number of bit shifts remaining */
-
-    if (ba == NULL)
-    {
-        return;         /* nothing to shift */
-    }
 
     if (shifts >= ba->numBits)
     {
         /* all bits have been shifted off */
         BitArrayClearAll(ba);
-        return;
+        return 0;
     }
 
     /* first handle big jumps of bytes */
@@ -755,6 +731,8 @@ void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts)
         mask = UCHAR_MAX << (CHAR_BIT - i);
         ba->array[BIT_CHAR(ba->numBits - 1)] &= mask;
     }
+
+    return 0;
 }
 
 /***************************************************************************
@@ -765,17 +743,19 @@ void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts)
 *   Effects    : ba will contain the results of an increment operation
 *                performed on itself.  Any spare bits in the array of
 *                unsigned characters containing the bits will be set to 0.
-*   Returned   : None
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayIncrement(bit_array_t *ba)
+int BitArrayIncrement(const bit_array_t *const ba)
 {
     int i;
     unsigned char maxValue;     /* maximum value for current char */
     unsigned char one;          /* least significant bit in current char */
 
-    if (ba == NULL)
+    if (NULL == ba)
     {
-        return;         /* nothing to increment */
+        errno = EPERM;
+        return -1;      /* not permitted on NULL array */
     }
 
     /* handle arrays that don't use every bit in the last character */
@@ -796,7 +776,7 @@ void BitArrayIncrement(bit_array_t *ba)
         if (ba->array[i] != maxValue)
         {
             ba->array[i] = ba->array[i] + one;
-            return;
+            return 0;
         }
         else
         {
@@ -808,6 +788,8 @@ void BitArrayIncrement(bit_array_t *ba)
             one = 1;
         }
     }
+
+    return 0;
 }
 
 /***************************************************************************
@@ -818,17 +800,19 @@ void BitArrayIncrement(bit_array_t *ba)
 *   Effects    : ba will contain the results of a decrement operation
 *                performed on itself.  Any spare bits in the array of
 *                unsigned characters containing the bits will be set to 0.
-*   Returned   : None
+*   Returned   : 0 for success, -1 for failure.  errno will be set in the
+*                event of a failure.
 ***************************************************************************/
-void BitArrayDecrement(bit_array_t *ba)
+int BitArrayDecrement(const bit_array_t *const ba)
 {
     int i;
     unsigned char maxValue;     /* maximum value for current char */
     unsigned char one;          /* least significant bit in current char */
 
-    if (ba == NULL)
+    if (NULL == ba)
     {
-        return;         /* nothing to decrement */
+        errno = EPERM;
+        return -1;      /* not permitted on NULL array */
     }
 
     /* handle arrays that don't use every bit in the last character */
@@ -849,7 +833,7 @@ void BitArrayDecrement(bit_array_t *ba)
         if (ba->array[i] >= one)
         {
             ba->array[i] = ba->array[i] - one;
-            return;
+            return 0;
         }
         else
         {
@@ -861,6 +845,8 @@ void BitArrayDecrement(bit_array_t *ba)
             one = 1;
         }
     }
+
+    return 0;
 }
 
 /***************************************************************************
@@ -897,7 +883,7 @@ int BitArrayCompare(const bit_array_t *ba1, const bit_array_t *ba2)
     if (ba1->numBits != ba2->numBits)
     {
         /* arrays are different sizes */
-        return(ba1->numBits - ba2->numBits);
+        return (ba1->numBits - ba2->numBits);
     }
 
     for(i = 0; i <= BIT_CHAR(ba1->numBits - 1); i++)

@@ -7,24 +7,10 @@
 *   Date    : January 30, 2004
 *
 ****************************************************************************
-*   HISTORY
-*
-*   $Id: sample.c,v 1.3 2007/08/26 21:20:20 michael Exp $
-*   $Log: sample.c,v $
-*   Revision 1.3  2007/08/26 21:20:20  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.2  2006/02/08 14:03:21  michael
-*   Update for latest changes to bitarray.c
-*
-*   Revision 1.1.1.1  2004/02/09 04:15:45  michael
-*   Initial release
-*
-*
-****************************************************************************
 *
 * Sample: A bit array library sample usage program
-* Copyright (C) 2004, 2006-2007 by Michael Dipperstein (mdipper@cs.ucsb.edu)
+* Copyright (C) 2004, 2006-2007, 2014 by
+*   Michael Dipperstein (mdipper@cs.ucsb.edu)
 *
 * This file is part of the bit array library.
 *
@@ -44,12 +30,20 @@
 ***************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 #include "bitarray.h"
 
 /***************************************************************************
 *                                 MACROS
 ***************************************************************************/
 #define NUM_BITS 128        /* size of bit array */
+
+/* macro for error checking when NDEBUG isn't defined */
+#ifdef  NDEBUG
+#define EVAL_RESULT(R)  (void)(R)
+#else
+#define EVAL_RESULT(R)  if (-1 == (R)) {perror(NULL); exit(EXIT_FAILURE);};
+#endif
 
 /***************************************************************************
 *                                FUNCTIONS
@@ -83,11 +77,10 @@ int main()
 {
     bit_array_t *ba1, *ba2;
     int i;
+    int result;
 
     ba1 = BitArrayCreate(NUM_BITS);
-
     printf("set all bits in ba1\n");
-    BitArraySetAll(ba1);
     ShowArray("ba1", ba1);
 
     printf("\nclear all bits in ba1\n");
@@ -97,29 +90,39 @@ int main()
     printf("\nset 8 bits on each end of ba1 from the outside in\n");
     for (i = 0; i < 8; i++)
     {
-        BitArraySetBit(ba1, i);
-        BitArraySetBit(ba1, NUM_BITS - i - 1);
+        result = BitArraySetBit(ba1, i);
+        EVAL_RESULT(result);
+        result = BitArraySetBit(ba1, NUM_BITS - i - 1);
+        EVAL_RESULT(result);
         ShowArray("ba1", ba1);
     }
 
     printf("\nduplicate ba1 with ba2\n");
     ba2 = BitArrayDuplicate(ba1);
+    if (NULL == ba2)
+    {
+        EVAL_RESULT(-1);
+    }
     ShowArray("ba2", ba2);
 
     printf("\nba2 = ~(ba2)\n");
-    BitArrayNot(ba2, ba2);
+    result = BitArrayNot(ba2, ba2);
+    EVAL_RESULT(result);
     ShowArray("ba2", ba2);
 
     printf("\nba2 = ba2 | ba1\n");
-    BitArrayOr(ba2, ba1, ba2);
+    result = BitArrayOr(ba2, ba1, ba2);
+    EVAL_RESULT(result);
     ShowArray("ba2", ba2);
 
     printf("\nba2 = ba2 ^ ba1\n");
-    BitArrayXor(ba2, ba1, ba2);
+    result = BitArrayXor(ba2, ba1, ba2);
+    EVAL_RESULT(result);
     ShowArray("ba2", ba2);
 
     printf("\nba2 = ba2 & ba1\n");
-    BitArrayAnd(ba2, ba1, ba2);
+    result = BitArrayAnd(ba2, ba1, ba2);
+    EVAL_RESULT(result);
     ShowArray("ba2", ba2);
 
     printf("\ntesting some bits in ba1\n");
@@ -147,43 +150,53 @@ int main()
     printf("\nclear 8 bits on each end of ba1 from the outside in\n");
     for (i = 0; i < 8; i++)
     {
-        BitArrayClearBit(ba1, i);
-        BitArrayClearBit(ba1, NUM_BITS - i - 1);
+        result = BitArrayClearBit(ba1, i);
+        EVAL_RESULT(result);
+        result = BitArrayClearBit(ba1, NUM_BITS - i - 1);
+        EVAL_RESULT(result);
         ShowArray("ba1", ba1);
     }
 
     printf("\nset all bits in ba1 and shift right by 20\n");
     BitArraySetAll(ba1);
-    BitArrayShiftRight(ba1, 20);
+    result = BitArrayShiftRight(ba1, 20);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\nshift ba1 left by 20\n");
-    BitArrayShiftLeft(ba1, 20);
+    result = BitArrayShiftLeft(ba1, 20);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\nset all bits in ba1 and increment\n");
     BitArraySetAll(ba1);
-    BitArrayIncrement(ba1);
+    result = BitArrayIncrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\nincrement ba1\n");
-    BitArrayIncrement(ba1);
+    result = BitArrayIncrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\nincrement ba1\n");
-    BitArrayIncrement(ba1);
+    result = BitArrayIncrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\ndecrement ba1\n");
-    BitArrayDecrement(ba1);
+    result = BitArrayDecrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\ndecrement ba1\n");
-    BitArrayDecrement(ba1);
+    result = BitArrayDecrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\ndecrement ba1\n");
-    BitArrayDecrement(ba1);
+    result = BitArrayDecrement(ba1);
+    EVAL_RESULT(result);
     ShowArray("ba1", ba1);
 
     printf("\ncompare ba1 with ba1\n");

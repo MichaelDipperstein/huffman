@@ -8,21 +8,10 @@
 *   Date    : January 30, 2004
 *
 ****************************************************************************
-*   HISTORY
-*
-*   $Id: bitarray.h,v 1.2 2007/08/26 21:20:20 michael Exp $
-*   $Log: bitarray.h,v $
-*   Revision 1.2  2007/08/26 21:20:20  michael
-*   Changes required for LGPL v3.
-*
-*   Revision 1.1.1.1  2004/02/09 04:15:45  michael
-*   Initial release
-*
-*
-****************************************************************************
 *
 * Bitarray: An ANSI C library for manipulating arbitrary length bit arrays
-* Copyright (C) 2004, 2006-2007 by Michael Dipperstein (mdipper@cs.ucsb.edu)
+* Copyright (C) 2004, 2006-2007, 2014 by
+*   Michael Dipperstein (mdipper@cs.ucsb.edu)
 *
 * This file is part of the bit array library.
 *
@@ -55,51 +44,51 @@ typedef struct bit_array_t bit_array_t;
 ***************************************************************************/
 
 /* create/destroy functions */
-bit_array_t *BitArrayCreate(unsigned int bits);
+bit_array_t *BitArrayCreate(const unsigned int bits);
 void BitArrayDestroy(bit_array_t *ba);
 
 /* debug functions */
-void BitArrayDump(bit_array_t *ba, FILE *outFile);
+void BitArrayDump(const bit_array_t *const ba, FILE *outFile);
 
 /* set/clear functions */
-void BitArraySetAll(bit_array_t *ba);
-void BitArrayClearAll(bit_array_t *ba);
-void BitArraySetBit(bit_array_t *ba, unsigned int bit);
-void BitArrayClearBit(bit_array_t *ba, unsigned int bit);
+void BitArraySetAll(const bit_array_t *const ba);
+void BitArrayClearAll(const bit_array_t *const ba);
+int BitArraySetBit(const bit_array_t *const ba, const unsigned int bit);
+int BitArrayClearBit(const bit_array_t *const ba, const unsigned int bit);
 
 /* raw bit access */
-void *BitArrayGetBits(bit_array_t *ba);
+void *BitArrayGetBits(const bit_array_t *const ba);
 
 /* bit test function */
-int BitArrayTestBit(bit_array_t *ba, unsigned int bit);
+int BitArrayTestBit(const bit_array_t *const ba, const unsigned int bit);
 
 /* copy functions */
-void BitArrayCopy(bit_array_t *dest, const bit_array_t *src);
-bit_array_t *BitArrayDuplicate(const bit_array_t *src);
+int BitArrayCopy(const bit_array_t *const dest, const bit_array_t *const src);
+bit_array_t *BitArrayDuplicate(const bit_array_t *const src);
 
 /* logical operations */
-void BitArrayAnd(bit_array_t *dest,
-                 const bit_array_t *src1,
-                 const bit_array_t *src2);
+int BitArrayAnd(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2);
 
-void BitArrayOr(bit_array_t *dest,
-           const bit_array_t *src1,
-           const bit_array_t *src2);
+int BitArrayOr(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2);
 
-void BitArrayXor(bit_array_t *dest,
-            const bit_array_t *src1,
-            const bit_array_t *src2);
+int BitArrayXor(const bit_array_t *const dest,
+    const bit_array_t *const src1,
+    const bit_array_t *const src2);
 
-void BitArrayNot(bit_array_t *dest,
-            const bit_array_t *src);
+int BitArrayNot(const bit_array_t *const dest,
+    const bit_array_t *const src);
 
 /* bit shift functions */
-void BitArrayShiftLeft(bit_array_t *ba, unsigned int shifts);
-void BitArrayShiftRight(bit_array_t *ba, unsigned int shifts);
+int BitArrayShiftLeft(const bit_array_t *const ba, unsigned int shifts);
+int BitArrayShiftRight(const bit_array_t *const ba, unsigned int shifts);
 
 /* increment/decrement */
-void BitArrayIncrement(bit_array_t *ba);
-void BitArrayDecrement(bit_array_t *ba);
+int BitArrayIncrement(const bit_array_t *const ba);
+int BitArrayDecrement(const bit_array_t *const ba);
 
 /* comparison */
 int BitArrayCompare(const bit_array_t *ba1, const bit_array_t *ba2);
