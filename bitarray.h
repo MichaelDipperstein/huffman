@@ -11,7 +11,7 @@
 *
 * Bitarray: An ANSI C library for manipulating arbitrary length bit arrays
 * Copyright (C) 2004, 2006-2007, 2014 by
-*   Michael Dipperstein (mdipper@cs.ucsb.edu)
+*   Michael Dipperstein (mdipper@alumni.cs.ucsb.edu)
 *
 * This file is part of the bit array library.
 *

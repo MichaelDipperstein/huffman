@@ -27,7 +27,7 @@
 *
 * Bitarray: An ANSI C library for manipulating arbitrary length bit arrays
 * Copyright (C) 2004, 2006-2007, 2014 by
-*   Michael Dipperstein (mdipper@cs.ucsb.edu)
+*   Michael Dipperstein (mdipper@alumni.cs.ucsb.edu)
 *
 * This file is part of the bit array library.
 *
@@ -412,6 +412,18 @@ bit_array_t *BitArrayDuplicate(const bit_array_t *const src)
     return ba;
 }
 
+/***************************************************************************
+*   Function   : ValidateArgs
+*   Description: This function validates the arguments passed in to the
+*                logical operation functions.  All pointers must be non-NULL
+*                and have the same array length.
+*   Parameters : dest - pointer to destination bit array
+*                src1 - pointer to first source bit array
+*                src2 - pointer to second source bit array
+*   Effects    : errno is set when arguments are invalid
+*   Returned   : 0 for success, -1 for failure.  errno will be set to EPERM
+*                in the event of a failure.
+***************************************************************************/
 int ValidateArgs(const bit_array_t *const dest,
     const bit_array_t *const src1,
     const bit_array_t *const src2)

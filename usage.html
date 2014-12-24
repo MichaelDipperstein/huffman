@@ -1,0 +1,707 @@
+<!--
+   usage.html
+   
+   Copyright 2014 Michael Dipperstein (mdipper@alumni.cs.ucsb.edu)
+   
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+   
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+   
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+   MA 02110-1301, USA.
+   
+   
+-->
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <title>bitarry usage</title>
+    <meta http-equiv="content-type" content="text/html;charset=utf-8" />
+    <meta name="generator" content="Geany 0.21" />
+
+<style type="text/css">
+code
+{
+    font-family: monospace;
+    font-weight: bold;
+}
+
+.indent
+{
+    margin-top: 0em;
+    margin-left: 2em;
+}
+</style>
+</head>
+
+<body>
+    <h1>bitarray usage</h1>
+    <p>The bitarray library contains data types and functions supporting the
+    creation and manipulation of arbitrary length arrays of bits.</p>
+
+    <h2>Data Structures</h2>
+    <p><code>bit_array_t</code> is the type used to store an array of bits.  The
+    underlying array is hidden from direct access, but is implemented as an
+    array of <code>unsigned char</code>s where bit 0 is the most significant bit
+    of char 0, and the last bit is the least significant (non-spare) bit of the
+    greatest array index.  <code>bit_array_t</code> elements are created using
+    the the smallest array of <code>unsigned char</code> capable of containing
+    the specified number of bits.</p>
+
+    <p><strong>Example:</strong><br/>
+    An array of 20 bits (0 through 19) with 8 bit <strong><code>unsigned
+    char</code></strong>s requires 3 <strong><code>unsigned
+    char</code></strong>s (0 through 2) to store all the bits.</p>
+
+    <table summary="Bit Positions">
+        <tr>
+            <td>char</td>
+            <td colspan="8" style="text-align: center;">0</td>
+            <td colspan="8" style="text-align: center;">1</td>
+            <td colspan="8" style="text-align: center;">2</td>
+        </tr>
+        <tr>
+            <td>&nbsp;</td>
+            <td colspan="8" style="border: 1px solid black;">&nbsp;</td>
+            <td colspan="8" style="border: 1px solid black;">&nbsp;</td>
+            <td colspan="8" style="border: 1px solid black;">&nbsp;</td>
+        </tr>
+        <tr>
+            <td rowspan="2">bit</td>
+            <td colspan="10"></td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>1</td>
+            <td>X</td>
+            <td>X</td>
+            <td>X</td>
+            <td>X</td>
+        </tr>
+        <tr>
+            <td>0</td>
+            <td>1</td>
+            <td>2</td>
+            <td>3</td>
+            <td>4</td>
+            <td>5</td>
+            <td>6</td>
+            <td>7</td>
+            <td>8</td>
+            <td>9</td>
+            <td>0</td>
+            <td>1</td>
+            <td>2</td>
+            <td>3</td>
+            <td>4</td>
+            <td>5</td>
+            <td>6</td>
+            <td>7</td>
+            <td>8</td>
+            <td>9</td>
+            <td>X</td>
+            <td>X</td>
+            <td>X</td>
+            <td>X</td>
+        </tr>
+    </table>
+
+    <h2>Functions</h2>
+    <h3>Array Creation/Destruction</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayCreate</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>bit_array_t *BitArrayCreate(const unsigned int bits);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function allocates a bit array large enough to contain the
+        specified number of bits.  The contents of the array are not
+        initialized.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>bits</code> - the number of bits in the array to be
+        allocated.
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        This function allocates a bit array from the heap, or sets
+        <code>errno</code> on failure.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        A pointer to allocated the bit array or <code>NULL</code> if the array
+        may not be allocated.  <code>errno</code> will be set in the event that
+        the array may not be allocated.
+    </p>
+    
+    <h4 style="margin-bottom: 0em;">BitArrayDestroy</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>void BitArrayDestroy(bit_array_t *ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function frees the memory allocated for a bit array.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be freed.
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The memory pointed to by the bit array structure is freed.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        None
+    </p>
+
+    <h3>Array Duplication</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayCopy</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayCopy(const bit_array_t *const dest, const bit_array_t
+        *const src);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function copies the contents of a source bit array into the
+        destination.  If the two arrays are not the same size or either array
+        pointer is <code>NULL</code>, a copy will not take place and
+        <code>errno</code> will be set to <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>dest</code> - A pointer to the destination bit array<br/>
+        <code>src</code> - A pointer to the source bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The contents of the source bit array are copied to the destination
+        bit array.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set in the
+        event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayDuplicate</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>bit_array_t *BitArrayDuplicate(const bit_array_t *const src);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function creates a bit array and copies the contents of the bit
+        array passed as a parameter into the newly created array.  A pointer to
+        the duplicate array is returned.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>src</code> - A pointer to the bit array to be duplicated
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        A duplicate of the source bit array is created.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        A Pointer to duplicate of source or <code>NULL</code> for failure.
+        <code>errno</code> will be set in the event that the array may not
+        be duplicated.
+    </p>
+
+    <h3>Set/Clear Functions</h3>
+    <h4 style="margin-bottom: 0em;">BitArraySetAll</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>void BitArraySetAll(const bit_array_t *const ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function sets every bit to 1 in the bit array passed as a
+        parameter.  This is function uses <code>UCHAR_MAX</code>, so it is
+        crucial that the machine implementation of <code>unsigned char</code>
+        utilizes all the bits in the memory allocated for an <code>unsigned
+        char</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be set.
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        Each of the bits used in the bit array are set to 1. Unused (spare) bits
+        are set to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        None
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayClearAll</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>void BitArrayClearAll(const bit_array_t *const ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function sets every bit to 0 in the bit array passed as a
+        parameter.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be cleared.
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        Each of the bits used in the bit array are set to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        None
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArraySetBit</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArraySetBit(const bit_array_t *const ba, const unsigned
+        int bit);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function sets the specified bit in the bit array passed as a
+        parameter to 1.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array<br/>
+        <code>bit</code> - The index of bit to set
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The specified bit in the bit array is set to 1.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set in the
+        event of a failure.  If <code>bit</code> is beyond the bounds of the
+        bit array <code>errno</code> will be set to <code>ERANGE</code>.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayClearBit</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayClearBit(const bit_array_t *const ba, const unsigned
+        int bit);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function sets the specified bit in the bit array passed as a
+        parameter to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array<br/>
+        <code>bit</code> - The index of bit to clear
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The specified bit in the bit array is set to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set in the
+        event of a failure.  If <code>bit</code> is beyond the bounds of the
+        bit array <code>errno</code> will be set to <code>ERANGE</code>.
+    </p>
+
+    <h3>Bit Testing</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayTestBit</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayTestBit(const bit_array_t *const ba, const unsigned
+        int bit);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function tests the specified bit in the bit array passed as a
+        parameter.  A non-zero will be returned if the tested bit is set.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array<br/>
+        <code>bit</code> - The index of bit to test
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        None
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        Non-zero if the bit is set, otherwise 0.  This function does not
+        validate the input.  Tests on invalid input will produce unknown
+        results.
+    </p>
+
+    <h3>Logical Operations</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayAnd</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>
+            int BitArrayAnd(const bit_array_t *const dest,
+                const bit_array_t *const src1,
+                const bit_array_t *const src2);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function performs a bitwise AND on two bit arrays, storing the
+        results in a third bit array.  All array pointers must be
+        non-<code>NULL</code> and all arrays must be the same size.  Otherwise
+        no operation will take place and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>dest</code> - A pointer to the destination bit array<br/>
+        <code>src1</code> - A pointer to the first source bit array<br/>
+        <code>src2</code> - A pointer to the second source bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        <code>dest</code> will contain the results of a bitwise AND of
+        <code>src1</code> and <code>src2</code> unless one array pointer is
+        <code>NULL</code> or arrays are different sizes.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayOr</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>
+            int BitArrayOr(const bit_array_t *const dest,
+                const bit_array_t *const src1,
+                const bit_array_t *const src2);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function performs a bitwise OR on two bit arrays, storing the
+        results in a third bit array.  All array pointers must be
+        non-<code>NULL</code> and all arrays must be the same size.  Otherwise
+        no operation will take place and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>dest</code> - A pointer to the destination bit array<br/>
+        <code>src1</code> - A pointer to the first source bit array<br/>
+        <code>src2</code> - A pointer to the second source bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        <code>dest</code> will contain the results of a bitwise OR of
+        <code>src1</code> and <code>src2</code> unless one array pointer is
+        <code>NULL</code> or arrays are different sizes.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayXor</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>
+            int BitArrayXor(const bit_array_t *const dest,
+                const bit_array_t *const src1,
+                const bit_array_t *const src2);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function performs a bitwise XOR on two bit arrays, storing the
+        results in a third bit array.  All array pointers must be
+        non-<code>NULL</code> and all arrays must be the same size.  Otherwise
+        no operation will take place and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>dest</code> - A pointer to the destination bit array<br/>
+        <code>src1</code> - A pointer to the first source bit array<br/>
+        <code>src2</code> - A pointer to the second source bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        <code>dest</code> will contain the results of a bitwise XOR of
+        <code>src1</code> and <code>src2</code> unless one array pointer is
+        <code>NULL</code> or arrays are different sizes.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayNot</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>
+            int BitArrayNot(const bit_array_t *const dest,
+                const bit_array_t *const src);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function performs a bitwise NOT on one bit array, storing the
+        results in another bit array.  All array pointers must be
+        non-<code>NULL</code> and all arrays must be the same size.  Otherwise
+        no operation will take place and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>dest</code> - A pointer to the destination bit array<br/>
+        <code>src</code> - A pointer to the source bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        <code>dest</code> will contain the results of a bitwise NOT of
+        <code>src</code> and unless one array pointer is <code>NULL</code> or
+        the arrays are different sizes.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h3>Logical Shifting</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayShiftLeft</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayShiftLeft(const bit_array_t *const ba, unsigned int
+            shifts);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function shifts the bits in a bit array to the left by the amount
+        of bit positions specified.  If the array pointer is <code>NULL</code>,
+        nothing will be shifted and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be shifted<br/>
+        <code>shifts</code> - The number of bit positions to shift to the left
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The bit array data pointed to by <code>ba</code> is shifted to the left.
+        New bits shifted in will be set to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayShiftRight</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayShiftRight(const bit_array_t *const ba, unsigned int
+            shifts);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function shifts the bits in a bit array to the right by the amount
+        of bit positions specified.  If the array pointer is <code>NULL</code>,
+        nothing will be shifted and <code>errno</code> will be set to
+        <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be shifted<br/>
+        <code>shifts</code> - The number of bit positions to shift to the right
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The bit array data pointed to by <code>ba</code> is shifted to the
+        right.  New bits shifted in will be set to 0.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h3>Increment/Decrement</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayIncrement</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayIncrement(const bit_array_t *const ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function increments a bit array as if it is an unsigned value of
+        the size of the bit array.  An overflow will cause the value to wrap
+        around.  If the array pointer is <code>NULL</code>, nothing will be
+        incremented and <code>errno</code> will be set to <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be incremented
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The bit array will contain the results of an increment operation
+        performed on itself.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayDecrement</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayDecrement(const bit_array_t *const ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function increments a bit array as if it is an unsigned value of
+        the size of the bit array.  An underflow will cause the value to wrap
+        around.  If the array pointer is <code>NULL</code>, nothing will be
+        decremented and <code>errno</code> will be set to <code>EPERM</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be decremented
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        The bit array will contain the results of an decrement operation
+        performed on itself.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        0 for success, -1 for failure.  <code>errno</code> will be set to
+        <code>EPERM</code> the event of a failure.
+    </p>
+
+    <h3>Comparison</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayCompare</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>int BitArrayCompare(const bit_array_t *ba1, const bit_array_t
+        *ba2);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function compares two bit arrays.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba1</code> - A pointer to a bit array<br/>
+        <code>ba2</code> - A pointer to a bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        None
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        &lt; 0 if <code>ba1</code> &lt; <code>ba2</code> or <code>ba1</code>
+        is shorter than ba2<br/>
+        0 if <code>ba1</code> == <code>ba2</code><br/>
+        &gt; 0 if <code>ba1</code> &gt; <code>ba2</code> or <code>ba1</code>
+        is longer than <code>ba2</code><br/>
+    </p>
+
+    <h3>Debugging</h3>
+    <h4 style="margin-bottom: 0em;">BitArrayDump</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>void BitArrayDump(const bit_array_t *const ba, FILE *outFile);
+        </code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function dumps the contents of a bit array to the specified output
+        stream.  The format of the dump is a series of bytes represented in
+        hexadecimal.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array to be dumped<br/>
+        <code>outFile</code> - A pointer to output steam to be used.  If
+            <code>NULL</code>, then <code>stdout</code> will be used.
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        A hexadecimal dump of the bit array is sent to <code>outFile</code>.
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        None
+    </p>
+    <p><strong>NOTE:</strong> This function only works with 8-bit
+    <code>char</code>.</p>
+
+    <h4 style="margin-bottom: 0em;">BitArrayGetBits</h4>
+    <p style="margin-bottom: 0em;">Declaration:</p>
+    <p class="indent">
+        <code>void *BitArrayGetBits(const bit_array_t *const ba);</code>
+    </p>
+    <p style="margin-bottom: 0em;">Description:</p>
+    <p class="indent">
+        This function returns a pointer to the array of <code>unsigned
+        char</code> containing actual bits.  This function should be used
+        with caution.  Manipulating the array of bits outside of the bit array
+        functions may have adverse effects.
+    </p>
+    <p style="margin-bottom: 0em;">Parameters:</p>
+    <p class="indent">
+        <code>ba</code> - A pointer to the bit array
+    </p>
+    <p style="margin-bottom: 0em;">Effects:</p>
+    <p class="indent">
+        None
+    </p>
+    <p style="margin-bottom: 0em;">Returned:</p>
+    <p class="indent">
+        A pointer to the array containing the bits.
+    </p>
+
+</body>
+
+</html>
