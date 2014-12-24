@@ -80,7 +80,9 @@ int main()
     int result;
 
     ba1 = BitArrayCreate(NUM_BITS);
+
     printf("set all bits in ba1\n");
+    BitArraySetAll(ba1);
     ShowArray("ba1", ba1);
 
     printf("\nclear all bits in ba1\n");
