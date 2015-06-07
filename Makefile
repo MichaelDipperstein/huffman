@@ -1,13 +1,17 @@
 ############################################################################
 #
-# Makefile for huffman encode/decode programs
+# Makefile for huffman encode/decode sample program
+# arguements:
+#	No argument			Build everything
+#	DEBUG=1				Build with debugging output and symbols
+#	clean				Delete all compiled/linked output
 #
 ############################################################################
 
 CC = gcc
 LD = gcc
-CFLAGS = -O3 -Wall -Wextra -ansi -pedantic -c
-LDFLAGS = -O3 -o
+CFLAGS = -Wall -Wextra -ansi -pedantic -c
+LDFLAGS = -o
 
 # libraries
 LIBS = -L. -lhuffman -loptlist
@@ -22,7 +26,14 @@ ifeq ($(OS),Windows)
 	DEL = del
 else	#assume Linux/Unix
 	EXE =
-	DEL = rm
+	DEL = rm -f
+endif
+
+# Handle debug/no debug
+ifneq ($(DEBUG), 1)
+	CFLAGS += -O3 -DNDEBUG
+else
+	CFLAGS += -g
 endif
 
 all:		sample$(EXE)
