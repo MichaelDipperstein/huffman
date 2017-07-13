@@ -14,7 +14,7 @@ COPYING.LESSER  - GNU Lesser General Public License Version 3
 sample.c        - Program demonstrating how to use the bitarray library.
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
 README          - this file
-usage.html      - description of each function in the bitarray library
+docs/index.html - description of each function in the bitarray library
 
 BUILDING
 --------
@@ -23,8 +23,11 @@ command line.
 
 USAGE
 -----
-See usage.html for a description of each function in the bitarray library.
 sample.c demonstrates usage of each of the bitarray functions.
+
+DOCUMENTATION
+-------------
+See https://michaeldipperstein.github.io/bitarray/
 
 HISTORY
 -------
@@ -34,6 +37,7 @@ HISTORY
 08/26/07 - Updated for LGPL v3 release.
 12/22/14 - Use errno where it makes sense and provide an document describing
            each function.
+07/12/17 - Updates for github
 
 TODO
 ----
@@ -42,4 +46,4 @@ TODO
 AUTHOR
 ------
 Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
-http://michael.dipperstein.com
+https://michaeldipperstein.github.io/
