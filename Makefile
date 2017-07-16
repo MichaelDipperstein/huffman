@@ -14,7 +14,7 @@ CFLAGS = -Wall -Wextra -ansi -pedantic -c
 LDFLAGS = -o
 
 # libraries
-LIBS = -L. -lhuffman -loptlist
+LIBS = -L. -Lbitfile -Lbitarray -Loptlist -lhuffman -lbitfile -lbitarray -loptlist
 
 # Treat NT and non-NT windows the same
 ifeq ($(OS),Windows_NT)
@@ -38,40 +38,39 @@ endif
 
 all:		sample$(EXE)
 
-sample$(EXE):	sample.o libhuffman.a liboptlist.a
+sample$(EXE):	sample.o libhuffman.a bitfile/libbitfile.a\
+				bitarray/libbitarray.a optlist/liboptlist.a
 		$(LD) $^ $(LIBS) $(LDFLAGS) $@
 
-sample.o:	sample.c huffman.h optlist.h
+sample.o:	sample.c huffman.h optlist/optlist.h
 		$(CC) $(CFLAGS) $<
 
-libhuffman.a:	huffman.o canonical.o huflocal.o bitarray.o bitfile.o
-		ar crv libhuffman.a huffman.o canonical.o huflocal.o\
-		bitarray.o bitfile.o
+libhuffman.a:	huffman.o canonical.o huflocal.o
+		ar crv libhuffman.a huffman.o canonical.o huflocal.o
 		ranlib libhuffman.a
 
-huffman.o:	huffman.c huflocal.h bitarray.h bitfile.h
+huffman.o:	huffman.c huflocal.h bitarray/bitarray.h bitfile/bitfile.h
 		$(CC) $(CFLAGS) $<
 
-canonical.o:	canonical.c huflocal.h bitarray.h bitfile.h
+canonical.o:	canonical.c huflocal.h bitarray/bitarray.h bitfile/bitfile.h
 		$(CC) $(CFLAGS) $<
 
 huflocal.o:	huflocal.c huflocal.h
 		$(CC) $(CFLAGS) $<
 
-bitarray.o:	bitarray.c bitarray.h
-		$(CC) $(CFLAGS) $<
+bitfile/libbitfile.a:
+		cd bitfile && $(MAKE) libbitfile.a
 
-bitfile.o:	bitfile.c bitfile.h
-		$(CC) $(CFLAGS) $<
+bitarray/libbitarray.a:
+		cd bitarray && $(MAKE) libbitarray.a
 
-liboptlist.a:	optlist.o
-		ar crv liboptlist.a optlist.o
-		ranlib liboptlist.a
-
-optlist.o:	optlist.c optlist.h
-		$(CC) $(CFLAGS) $<
+optlist/liboptlist.a:
+		cd optlist && $(MAKE) liboptlist.a
 
 clean:
 		$(DEL) *.o
 		$(DEL) *.a
 		$(DEL) sample$(EXE)
+		cd optlist && $(MAKE) clean
+		cd bitfile && $(MAKE) clean
+		cd bitarray && $(MAKE) clean

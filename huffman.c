@@ -9,7 +9,7 @@
 ****************************************************************************
 *
 * Huffman: An ANSI C Huffman Encoding/Decoding Routine
-* Copyright (C) 2002-2005, 2007, 2014 by
+* Copyright (C) 2002-2005, 2007, 2014, 2017 by
 * Michael Dipperstein (mdipper@alumni.engr.ucsb.edu)
 *
 * This file is part of the Huffman library.
@@ -37,8 +37,8 @@
 #include <errno.h>
 #include "huflocal.h"
 #include "huffman.h"
-#include "bitarray.h"
-#include "bitfile.h"
+#include "bitarray/bitarray.h"
+#include "bitfile/bitfile.h"
 
 /***************************************************************************
 *                            TYPE DEFINITIONS
