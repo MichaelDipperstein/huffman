@@ -5,8 +5,7 @@ coding and decoding.  This implementation is not intended to be the best,
 fastest, smallest, or any other performance related adjective.
 
 More information on Huffman encoding may be found at:
-http://michael.dipperstein.com/huffman
-http://datacompression.info/Huffman.shtml
+https://michaeldipperstein.github.io/huffman.html
 
 FILES
 -----
