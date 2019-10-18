@@ -12,6 +12,9 @@ LD = gcc
 CFLAGS = -O2 -Wall -Wextra -pedantic -ansi -c
 LDFLAGS = -O2 -o
 
+# libraries
+LIBS = -L. -lbitarray
+
 # Treat NT and non-NT windows the same
 ifeq ($(OS),Windows_NT)
 	OS = Windows
@@ -34,15 +37,20 @@ endif
 
 all:	sample$(EXE)
 
-sample$(EXE):	sample.o bitarray.o
-	$(LD) $^ $(LDFLAGS) $@
+sample$(EXE):	sample.o libbitarray.a
+	$(LD) $< $(LIBS) $(LDFLAGS) $@
 
 sample.o:	sample.c bitarray.h
 	$(CC) $(CFLAGS) $<
+
+libbitarray.a:	bitarray.o
+	ar crv libbitarray.a bitarray.o
+	ranlib libbitarray.a
 
 bitarray.o:	bitarray.c bitarray.h
 	$(CC) $(CFLAGS) $<
 
 clean:
 	$(DEL) *.o
+	$(DEL) *.a
 	$(DEL) sample$(EXE)
