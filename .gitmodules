@@ -1,0 +1,9 @@
+[submodule "optlist"]
+	path = optlist
+	url = https://github.com/MichaelDipperstein/optlist.git
+[submodule "bitfile"]
+	path = bitfile
+	url = https://github.com/MichaelDipperstein/bitfile.git
+[submodule "bitarray"]
+	path = bitarray
+	url = https://github.com/MichaelDipperstein/bitarray.git

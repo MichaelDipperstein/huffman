@@ -21,9 +21,10 @@ huflocal.c      - File with internal library functions common to both canonical
 Makefile        - makefile for this project (assumes gcc compiler and GNU make)
 README          - this file
 sample.c        - Demonstration of how to use Huffman library functions
-optlist/        - Subtree containing optlist command line option parser library
-bitfile/        - Subtree containing bitfile bitwise file library
-bitarray/       - Subtree containing bitarray bitwise array library
+optlist/        - Submodule containing the optlist command line option parser
+                  library.
+bitfile/        - Submodule containing the bitfile bitwise file library.
+bitarray/       - Submodule containing the bitarray bitwise array library.
 
 BUILDING
 --------
