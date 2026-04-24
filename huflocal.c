@@ -115,7 +115,7 @@ huffman_node_t *GenerateTreeFromFile(FILE *inFile)
     huffmanTree = BuildHuffmanTree(huffmanArray, NUM_CHARS);
 
     /* deallocate any unused leaves */
-    for (c = 0; c < EOF; c++)
+    for (c = 0; c < EOF_CHAR; c++)
     {
         if (1 == huffmanArray[c]->ignore)
         {
